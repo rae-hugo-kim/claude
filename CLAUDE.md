@@ -73,6 +73,7 @@ If you cannot comply with any MUST:
 - Repo command discovery: [`rules/repo_command_discovery.md`](rules/repo_command_discovery.md)
 - Context7 trigger policy: [`rules/context7_policy.md`](rules/context7_policy.md)
 - Verification (tests + evals): [`rules/verification_tests_and_evals.md`](rules/verification_tests_and_evals.md)
+- TDD policy: [`rules/tdd_policy.md`](rules/tdd_policy.md)
 - Change control (minimal change, scope, tidy): [`rules/change_control.md`](rules/change_control.md)
 - Documentation policy (optional): [`rules/documentation_policy.md`](rules/documentation_policy.md)
 - Assetization (spec/decision/retro): [`rules/assetization.md`](rules/assetization.md)

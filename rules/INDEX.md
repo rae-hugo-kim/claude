@@ -9,6 +9,7 @@
 ## Quality rails
 
 - Verification (tests + evals): [`verification_tests_and_evals.md`](verification_tests_and_evals.md)
+- TDD policy (RED → GREEN → TIDY): [`tdd_policy.md`](tdd_policy.md)
 - Change control (minimal change, scope, Tidy First triggers): [`change_control.md`](change_control.md)
 - Context7 policy (trigger-based): [`context7_policy.md`](context7_policy.md)
 
