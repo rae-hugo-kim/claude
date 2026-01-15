@@ -66,6 +66,22 @@ If you cannot comply with any MUST:
 - You **MUST** use Context7 when introducing **new** external APIs/SDKs, new dependencies, version-sensitive syntax, or suspected deprecations.
 - You **MAY** skip Context7 when modifying code that already demonstrates the same API usage pattern in-repo.
 
+## Implementation Rules (Always Apply)
+
+### Mandatory Gates
+1. **No code before test plan** — 테스트 계획 승인 전 구현 금지
+2. **No implementation before RED** — 실패하는 테스트 먼저
+3. **No "done" before checklist** — 체크리스트 통과 전 완료 선언 금지
+
+### TDD Cycle
+RED (failing test) → GREEN (minimal impl) → TIDY (clean up)
+
+### Anti-Patterns (STOP if detected)
+- Test-after, Big bang, Scope creep, Hardcoding
+
+### Reference
+Full details: `.claude/skills/startdev/`
+
 ## Linked Modules
 
 - Safety & security: [`rules/safety_security.md`](rules/safety_security.md)
