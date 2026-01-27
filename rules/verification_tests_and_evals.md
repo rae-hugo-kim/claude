@@ -1,5 +1,16 @@
 # Verification: Tests + Evals
 
+## Harness Integration
+
+**Note**: If oh-my-claudecode harness is active:
+- `acceptance-gate`: Blocks completion claims without passing tests
+- `backpressure-gate`: Slows down after repeated failures
+- Architect verification is required before completion
+
+This document defines verification *standards*; harness enforces the *process*.
+
+---
+
 ## MUST: every user-impacting change has a verification artifact
 
 For any user-impacting change, provide at least one reproducible verification artifact:

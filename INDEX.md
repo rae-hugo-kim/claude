@@ -2,6 +2,8 @@
 
 This folder contains a layered CLAUDE policy set (entry + modules + checklists + templates).
 
+**Designed for**: oh-my-claudecode environment (harness hooks + multi-agent orchestration active).
+
 ## Entry points
 
 - Agent policy (English): [`CLAUDE.md`](CLAUDE.md)

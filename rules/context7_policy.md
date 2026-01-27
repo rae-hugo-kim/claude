@@ -25,3 +25,5 @@ If Context7 is required but unavailable:
 - Follow the Exception Protocol (state what is blocked, provide safe alternatives, ask for confirmation).
 
 
+
+

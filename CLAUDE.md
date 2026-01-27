@@ -14,6 +14,21 @@ This file is **always-on** agent policy. Keep it short.
 
 - This policy applies to this repo/workspace when the agent is active.
 - If a linked module conflicts with this file, **this file wins**.
+- **This policy complements oh-my-claudecode global rules** (not replaces them).
+
+## oh-my-claudecode Integration
+
+This repo assumes **oh-my-claudecode** is active globally. The following are enforced automatically:
+
+| What | How | This File's Role |
+|------|-----|------------------|
+| Code changes | Delegated to executor agents | N/A (global rule) |
+| Scope enforcement | harness `scope-gate` hook | Supplements with project-specific rules |
+| Pre-edit file read | harness `context-gate` hook | N/A (auto-enforced) |
+| Completion verification | Architect agent | Supplements with evidence requirements |
+| Backpressure on failures | harness `backpressure-gate` hook | N/A (auto-enforced) |
+
+**What this file adds**: Project-specific constraints, evidence standards, and documentation requirements.
 
 ## Terminology (RFC 2119)
 
@@ -37,21 +52,15 @@ This file is **always-on** agent policy. Keep it short.
 - **Verification**: every user-impacting change must include at least one reproducible verification artifact.
 - **Evidence**: cite concrete evidence for key decisions (file paths + excerpts or command output).
 
-## Completion Report Contract (MUST)
+## Completion Contract (MUST)
 
-When you claim a task is “done”, your final message MUST include:
+When claiming a task is "done", the final message MUST include:
 
-- **Applied rules**: which rules/checklists were applied (links to the relevant docs)
+- **Applied rules**: which rules/checklists were applied
 - **Evidence**: concrete evidence for key claims (file paths + excerpts or command outputs)
-- **Verification**: what was run/done to verify (commands/results, or deterministic manual steps)
+- **Verification**: what was run/done to verify (commands/results)
 
-## Default Workflow (MUST)
-
-- **Explore**: read relevant files/config/CI/lockfiles to establish facts. No edits.
-- **Plan**: propose a small, verifiable plan with chosen verification.
-- **Implement**: minimal change; avoid scope creep.
-- **Verify**: run fastest relevant gate first, then full gates if needed.
-- **Record**: summarize changes, evidence, verification, risks, and rollback.
+**Note**: Architect verification is handled by oh-my-claudecode global rules. This contract defines the *content* of the completion report.
 
 ## Exception Protocol (MUST when blocked)
 
@@ -61,35 +70,22 @@ If you cannot comply with any MUST:
 2) Provide **2–3 alternatives** (safe options only).
 3) Ask for **explicit confirmation** if any alternative is risky or irreversible.
 
-## Context7 Policy (Trigger-based)
+## MCP Server Policy (Trigger-based)
 
-- You **MUST** use Context7 when introducing **new** external APIs/SDKs, new dependencies, version-sensitive syntax, or suspected deprecations.
-- You **MAY** skip Context7 when modifying code that already demonstrates the same API usage pattern in-repo.
-
-## Implementation Rules (Always Apply)
-
-### Mandatory Gates
-1. **No code before test plan** — 테스트 계획 승인 전 구현 금지
-2. **No implementation before RED** — 실패하는 테스트 먼저
-3. **No "done" before checklist** — 체크리스트 통과 전 완료 선언 금지
-
-### TDD Cycle
-RED (failing test) → GREEN (minimal impl) → TIDY (clean up)
-
-### Anti-Patterns (STOP if detected)
-- Test-after, Big bang, Scope creep, Hardcoding
-
-### Reference
-Full details: `.claude/skills/startdev/`
+- See [`rules/mcp_policy.md`](rules/mcp_policy.md) for full policies on all MCP servers.
+- **Context7**: MUST use for new external APIs/SDKs, dependencies, version-sensitive syntax.
+- **Serena**: SHOULD use for symbol navigation, refactoring, code understanding.
+- **Supabase**: MUST use migrations for DDL; MAY use direct SQL for queries.
+- **Web Search**: SHOULD use for current events, errors, latest docs.
 
 ## Linked Modules
 
 - Safety & security: [`rules/safety_security.md`](rules/safety_security.md)
 - Anti-hallucination & evidence: [`rules/anti_hallucination.md`](rules/anti_hallucination.md)
 - Repo command discovery: [`rules/repo_command_discovery.md`](rules/repo_command_discovery.md)
+- MCP server policies: [`rules/mcp_policy.md`](rules/mcp_policy.md)
 - Context7 trigger policy: [`rules/context7_policy.md`](rules/context7_policy.md)
 - Verification (tests + evals): [`rules/verification_tests_and_evals.md`](rules/verification_tests_and_evals.md)
-- TDD policy: [`rules/tdd_policy.md`](rules/tdd_policy.md)
 - Change control (minimal change, scope, tidy): [`rules/change_control.md`](rules/change_control.md)
 - Documentation policy (optional): [`rules/documentation_policy.md`](rules/documentation_policy.md)
 - Assetization (spec/decision/retro): [`rules/assetization.md`](rules/assetization.md)
@@ -106,8 +102,6 @@ Full details: `.claude/skills/startdev/`
 ## Templates
 
 - Assumptions: [`templates/assumptions.md`](templates/assumptions.md)
-- Decision log: [`templates/decision_log.md`](templates/decision_log.md)
+- Change log: [`templates/decision_log.md`](templates/decision_log.md)
 - PR description: [`templates/pr_body.md`](templates/pr_body.md)
 - Retro note: [`templates/retro.md`](templates/retro.md)
-
-

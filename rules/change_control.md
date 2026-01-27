@@ -1,5 +1,15 @@
 # Change Control (Scope, Minimal Change, Tidy)
 
+## Harness Integration
+
+**Note**: If oh-my-claudecode harness is active, the following are enforced automatically:
+- `scope-gate`: Blocks edits to files outside defined scope (via `current-scope.md`)
+- `context-gate`: Blocks edits to files not yet read
+
+This document defines the *principles*; harness enforces them mechanically.
+
+---
+
 ## MUST: minimal change first
 
 - Prefer the smallest change that meets the stated goal.

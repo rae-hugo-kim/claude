@@ -11,3 +11,5 @@ This file records lightweight team agreements that are **not** always-on rules.
   - Triggers: PRD gets too long, scope drift debates repeat, frequent PRD changes need a stable summary at the top.
 
 
+
+
