@@ -90,6 +90,7 @@ If you cannot comply with any MUST:
 - Documentation policy (optional): [`rules/documentation_policy.md`](rules/documentation_policy.md)
 - Assetization (spec/decision/retro): [`rules/assetization.md`](rules/assetization.md)
 - Commit/PR discipline: [`rules/commit_and_pr.md`](rules/commit_and_pr.md)
+- TDD policy: [`rules/tdd_policy.md`](rules/tdd_policy.md)
 
 ## Checklists (Use as needed)
 
