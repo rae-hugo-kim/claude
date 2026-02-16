@@ -1,8 +1,10 @@
 # Verification: Tests + Evals
 
-## Harness Integration
+## Global enforcement assumed (provided by oh-my-claudecode)
 
-**Note**: If oh-my-claudecode harness is active:
+### MUST (owner: global-harness): satisfy harness verification gates before completion
+
+The harness enforces these controls mechanically:
 - `acceptance-gate`: Blocks completion claims without passing tests
 - `backpressure-gate`: Slows down after repeated failures
 - Architect verification is required before completion
@@ -11,7 +13,9 @@ This document defines verification *standards*; harness enforces the *process*.
 
 ---
 
-## MUST: every user-impacting change has a verification artifact
+## Local additions (this repo only)
+
+### MUST (owner: local-policy): every user-impacting change has a verification artifact
 
 For any user-impacting change, provide at least one reproducible verification artifact:
 
@@ -71,9 +75,9 @@ Classify policy edits and route reviews accordingly:
 - Statistical quality, LLM outputs, ranking, UX equivalence, golden diffs → **evals**
 - If unsure: start with tests; add evals for quality surfaces
 
-## MUST: use evals when correctness is not fully captured by deterministic tests
+### MUST (owner: local-policy): use evals when correctness is not fully captured by deterministic tests
 
-You MUST add or extend an eval harness/case when the change affects any of:
+You MUST (owner: local-policy) add or extend an eval harness/case when the change affects any of:
 
 - Search, ranking, recommendations
 - LLM outputs (format adherence, factuality, tone), prompt changes
@@ -103,11 +107,10 @@ If deterministic tests exist, keep them — evals complement tests, they don’t
 - `eval/baselines/` (golden outputs/metrics)
 - `eval/reports/` (generated; usually gitignored)
 
-## MUST: record what you verified
+### MUST (owner: local-policy): record what you verified
 
 In the final summary/PR body, include:
 
 - What was run (commands)
 - What passed/failed
 - Any skipped gates and why
-
