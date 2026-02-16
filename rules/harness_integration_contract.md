@@ -85,7 +85,8 @@ Run this checklist at session start:
 Recommended quick check sequence:
 
 - `test -d ~/.claude/hooks && echo hooks_ok`
-- `ls ~/.claude/hooks | rg "scope-gate|context-gate|acceptance-gate|backpressure-gate"`
+- `for g in scope-gate context-gate acceptance-gate backpressure-gate; do ls ~/.claude/hooks | rg -x "$g"; done`
+- `ls ~/.claude/hooks | rg -x "scope-gate|context-gate|acceptance-gate|backpressure-gate" | wc -l` (MUST be `4`)
 - `test -d ~/.claude/agents && ls ~/.claude/agents | rg -i "architect"`
 - `test -f ~/.claude/logs/hook-events.log && tail -n 20 ~/.claude/logs/hook-events.log`
 
