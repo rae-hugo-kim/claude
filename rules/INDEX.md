@@ -21,6 +21,7 @@
 
 - Assetization (spec/decision/retro): [`assetization.md`](assetization.md)
 - Commit & PR discipline: [`commit_and_pr.md`](commit_and_pr.md)
+- Harness integration contract: [`harness_integration_contract.md`](harness_integration_contract.md)
 
 ## Optional
 

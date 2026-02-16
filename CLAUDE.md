@@ -30,6 +30,8 @@ This repo assumes **oh-my-claudecode** is active globally. The following are enf
 
 **What this file adds**: Project-specific constraints, evidence standards, and documentation requirements.
 
+Harness verification contract details: [`rules/harness_integration_contract.md`](rules/harness_integration_contract.md)
+
 ## Terminology (RFC 2119)
 
 - **MUST**: required. If you cannot comply, follow the Exception Protocol.
@@ -91,6 +93,7 @@ If you cannot comply with any MUST:
 - Assetization (spec/decision/retro): [`rules/assetization.md`](rules/assetization.md)
 - Commit/PR discipline: [`rules/commit_and_pr.md`](rules/commit_and_pr.md)
 - TDD policy: [`rules/tdd_policy.md`](rules/tdd_policy.md)
+- Harness integration contract: [`rules/harness_integration_contract.md`](rules/harness_integration_contract.md)
 
 ## Checklists (Use as needed)
 
