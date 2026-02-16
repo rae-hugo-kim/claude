@@ -50,6 +50,7 @@ This repo assumes **oh-my-claudecode** is active globally. The following are enf
 - **Repo commands**: do not guess build/test/lint/typecheck/e2e/eval commands. Discover them.
 - **Risky actions**: require explicit approval before proposing/executing risky changes.
 - **Verification**: every user-impacting change must include at least one reproducible verification artifact.
+- **Docs/policy-only mode**: for pure markdown/policy/template edits, follow the docs-only verification path in `rules/verification_tests_and_evals.md` and include its required evidence format.
 - **Evidence**: cite concrete evidence for key decisions (file paths + excerpts or command output).
 
 ## Completion Contract (MUST)

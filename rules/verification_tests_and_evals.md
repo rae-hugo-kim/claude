@@ -19,6 +19,47 @@ For any user-impacting change, provide at least one reproducible verification ar
 - An eval case + harness run, or
 - A deterministic manual reproduction procedure (only if automation is not feasible)
 
+## Docs/Policy-Only Change Mode
+
+Use this mode when the diff is limited to **pure markdown/policy navigation/template edits** and has no runtime behavior impact.
+
+### Eligibility (when code tests are not required)
+
+Code tests/evals are **not required** only if all of the following are true:
+
+- Changed files are docs/policy/template content only (`*.md`, checklist/template docs).
+- No executable code, configuration, schema, build, or dependency files changed.
+- No examples/snippets were changed in a way that claims runtime behavior changes.
+
+If any condition is false, use normal verification gates for code changes.
+
+### Required deterministic artifacts (docs-only)
+
+For docs/policy-only mode, verification MUST include these deterministic artifacts:
+
+1. **Link integrity check**: confirm modified links/anchors resolve (in-repo paths and section anchors).
+2. **Cross-reference check**: confirm updated references still point to the canonical source docs.
+3. **Rule conflict checklist**: explicitly check for contradictions against `CLAUDE.md` and linked rule files.
+
+### Required evidence format (docs-only PRs)
+
+Docs-only PRs MUST include a short evidence block with:
+
+- **Changed files**: explicit list of edited docs.
+- **Before/after intent**: what policy or guidance changed and why.
+- **Manual validation steps**: deterministic steps + outcomes for link/cross-reference/conflict checks.
+
+### Risk classification for policy edits
+
+Classify policy edits and route reviews accordingly:
+
+- **Low risk**: wording/clarity changes with no requirement change.
+  - Reviewer: any repo maintainer.
+- **Medium risk**: changes to verification workflow, checklist gates, or required evidence fields.
+  - Mandatory reviewers: at least one policy owner/maintainer **and** one verification owner.
+- **High risk**: changes that alter non-negotiables, completion contract semantics, or exception protocol behavior.
+  - Mandatory reviewers: policy owner/maintainer, verification owner, **and** project/repo owner.
+
 ## SHOULD: prefer the smallest relevant gate first
 
 - Run the fastest relevant check first (single test, smoke subset, small eval, lint/typecheck).
@@ -69,5 +110,4 @@ In the final summary/PR body, include:
 - What was run (commands)
 - What passed/failed
 - Any skipped gates and why
-
 
