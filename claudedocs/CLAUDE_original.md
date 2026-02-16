@@ -1,8 +1,10 @@
-# WARNING (Reference only)
-#
-# This file is NOT auto-loaded by Claude Code.
-# Source of truth (SST): `../CLAUDE.md`
-#
+<!-- policy-sync-warning:start -->
+warning_type: reference_only
+non_normative_reference_only: true
+last_sync_date: 2026-02-16
+source_of_truth: ../CLAUDE.md
+source_commit_hash: c73e1f62c28a854c95f2ceb4ee2a4f3e2a786dee
+<!-- policy-sync-warning:end -->
 
 # CLAUDE.md (Team Standard)
 이 파일은 항상 로드됩니다. 여러 레포에서 공용으로 사용합니다.

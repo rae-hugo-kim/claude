@@ -51,6 +51,7 @@ This repo assumes **oh-my-claudecode** is active globally. The following are enf
 - **Risky actions**: require explicit approval before proposing/executing risky changes.
 - **Verification**: every user-impacting change must include at least one reproducible verification artifact.
 - **Evidence**: cite concrete evidence for key decisions (file paths + excerpts or command output).
+- **Reference doc sync**: in the same PR, update `claudedocs/CLAUDEKR.md` and `claudedocs/CLAUDE_original.md` or explicitly mark them as stale.
 
 ## Completion Contract (MUST)
 
