@@ -11,6 +11,15 @@ This folder contains a layered CLAUDE policy set (entry + modules + checklists +
 - Original long-form candidate (Korean, verbatim, reference only): [`claudedocs/CLAUDE_original.md`](claudedocs/CLAUDE_original.md)
 - Bootstrap guide (oh-my-claudecode environment checks): [`claudedocs/bootstrap_oh_my_claudecode.md`](claudedocs/bootstrap_oh_my_claudecode.md)
 
+## Policy sync process
+
+Run policy sync whenever `CLAUDE.md` changes (same PR) and refresh both reference docs or explicitly mark them stale.
+
+- Checklist: [`templates/policy_sync_checklist.md`](templates/policy_sync_checklist.md)
+- References to sync:
+  - [`claudedocs/CLAUDEKR.md`](claudedocs/CLAUDEKR.md)
+  - [`claudedocs/CLAUDE_original.md`](claudedocs/CLAUDE_original.md)
+
 ## Navigation
 
 - Rules: [`rules/INDEX.md`](rules/INDEX.md)

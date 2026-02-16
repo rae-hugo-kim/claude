@@ -54,6 +54,7 @@ Harness verification contract details: [`rules/harness_integration_contract.md`]
 - **Verification**: every user-impacting change must include at least one reproducible verification artifact.
 - **Docs/policy-only mode**: for pure markdown/policy/template edits, follow the docs-only verification path in `rules/verification_tests_and_evals.md` and include its required evidence format.
 - **Evidence**: cite concrete evidence for key decisions (file paths + excerpts or command output).
+- **Reference doc sync**: in the same PR, update `claudedocs/CLAUDEKR.md` and `claudedocs/CLAUDE_original.md` or explicitly mark them as stale.
 
 ## Completion Contract (MUST)
 
