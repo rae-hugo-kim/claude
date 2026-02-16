@@ -3,7 +3,7 @@ warning_type: reference_only
 non_normative_reference_only: true
 last_sync_date: 2026-02-16
 source_of_truth: ../CLAUDE.md
-source_commit_hash: c73e1f62c28a854c95f2ceb4ee2a4f3e2a786dee
+source_commit_hash: 03e12a011a5c49411b6e6585e53768e9a02e265f
 <!-- policy-sync-warning:end -->
 
 # CLAUDE.md (에이전트 규칙 - 계층형)
@@ -44,6 +44,7 @@ source_commit_hash: c73e1f62c28a854c95f2ceb4ee2a4f3e2a786dee
 - **위험 작업**: 위험한 변경을 제안/실행하기 전에 명시적 승인을 받습니다.
 - **검증**: 사용자 영향 변경은 최소 1개의 재현 가능한 검증 아티팩트가 있어야 합니다.
 - **근거 제시**: 핵심 결정은 구체적 근거(파일 경로 + 발췌 또는 커맨드 출력)를 함께 제공합니다.
+- **Reference doc sync**: in the same PR, update `claudedocs/CLAUDEKR.md` and `claudedocs/CLAUDE_original.md` or explicitly mark them as stale.
 
 ## 완료 보고 계약 (MUST)
 

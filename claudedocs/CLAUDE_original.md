@@ -3,7 +3,7 @@ warning_type: reference_only
 non_normative_reference_only: true
 last_sync_date: 2026-02-16
 source_of_truth: ../CLAUDE.md
-source_commit_hash: c73e1f62c28a854c95f2ceb4ee2a4f3e2a786dee
+source_commit_hash: 03e12a011a5c49411b6e6585e53768e9a02e265f
 <!-- policy-sync-warning:end -->
 
 # CLAUDE.md (Team Standard)
@@ -23,6 +23,9 @@ source_commit_hash: c73e1f62c28a854c95f2ceb4ee2a4f3e2a786dee
 3) **Implement(구현)**: 최소 변경으로 구현한다.
 4) **Verify(검증)**: 빠른 검증 → 필요 시 전체 게이트 순으로 실행한다.
 5) **Commit/PR(기록)**: 작은 단위로 커밋하고, 결정/가정/회고를 남긴다.
+
+### Reference doc sync (MUST)
+- **Reference doc sync**: in the same PR, update `claudedocs/CLAUDEKR.md` and `claudedocs/CLAUDE_original.md` or explicitly mark them as stale.
 
 ### 코스 교정
 불명확하면 초기에 멈추고 가정/전제를 명시한다. 컨텍스트가 지저분해지면 작업 단위마다 정리한다.
