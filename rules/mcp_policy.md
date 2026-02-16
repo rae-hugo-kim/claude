@@ -2,11 +2,17 @@
 
 This document defines when and how to use MCP (Model Context Protocol) servers.
 
+## Global enforcement assumed (provided by oh-my-claudecode)
+
+Global harness preference is assumed: when a maintained MCP tool can accomplish a task, prefer it over generic alternatives.
+
+## Local additions (this repo only)
+
 ## Priority Order
 
 When multiple tools can accomplish the same task:
 
-1. **MCP tools** (specialized, maintained) over generic alternatives
+1. **MCP tools** over generic alternatives
 2. **Symbolic tools** (Serena) over text-based file operations
 3. **Cached/indexed sources** (Context7) over live web search
 
@@ -16,7 +22,7 @@ When multiple tools can accomplish the same task:
 
 **Purpose**: Retrieve up-to-date documentation and code examples for libraries/frameworks.
 
-### MUST use when:
+### MUST use when (owner: local-policy):
 - Introducing **new** external APIs, SDKs, or dependencies
 - Using version-sensitive syntax or features
 - Suspected deprecations or breaking changes
@@ -59,7 +65,7 @@ When multiple tools can accomplish the same task:
 
 **Purpose**: Manage Supabase projects, execute SQL, apply migrations.
 
-### MUST use migrations (`apply_migration`) for:
+### MUST use migrations (`apply_migration`) for (owner: local-policy):
 - Schema changes (CREATE, ALTER, DROP)
 - Index creation/modification
 - RLS policy changes

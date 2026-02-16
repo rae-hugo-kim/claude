@@ -1,5 +1,19 @@
 # INDEX.md (rules)
 
+## Ownership legend
+
+- `owner: global-harness` → enforced by oh-my-claudecode platform/harness.
+- `owner: local-policy` → enforced by this repository’s policy docs and review process.
+
+## Conflict resolution order (when global and local diverge)
+
+1. **System/developer/user instructions** (runtime prompt instructions)
+2. **Global harness requirements** (`owner: global-harness`)
+3. **Repository-local policy** (`owner: local-policy`)
+4. **Advisory guidance** (`SHOULD` / `MAY`)
+
+If a local policy conflicts with a global harness rule, follow the global harness rule and document the deviation.
+
 ## Core rails
 
 - Safety & security (hard rails): [`safety_security.md`](safety_security.md)
@@ -25,7 +39,3 @@
 ## Optional
 
 - Documentation policy (language, README vs INDEX, latest-only option): [`documentation_policy.md`](documentation_policy.md)
-
-
-
-
