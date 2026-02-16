@@ -14,7 +14,7 @@ Global harness preference is assumed: when a maintained MCP tool can accomplish 
 
 When multiple tools can accomplish the same task:
 
-1. **MCP tools** over generic alternatives
+1. **Respect global harness MCP preference first** (`owner: global-harness`)
 2. **Symbolic tools** (Serena) over text-based file operations
 3. **Cached/indexed sources** (Context7) over live web search
 

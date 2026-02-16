@@ -14,6 +14,7 @@
 4. **Advisory guidance** (`SHOULD` / `MAY`)
 
 If a local policy conflicts with a global harness rule, follow the global harness rule and document the deviation.
+If both global and local guidance exist for the same tool choice, apply global-harness rules first, then local policy ordering.
 
 ## Core rails
 
