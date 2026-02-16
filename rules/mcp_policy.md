@@ -4,6 +4,8 @@ This document defines when and how to use MCP (Model Context Protocol) servers.
 
 ## Global enforcement assumed (provided by oh-my-claudecode)
 
+### MUST (owner: global-harness): prefer maintained MCP tooling when it can complete the task
+
 Global harness preference is assumed: when a maintained MCP tool can accomplish a task, prefer it over generic alternatives.
 
 ## Local additions (this repo only)

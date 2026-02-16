@@ -2,7 +2,9 @@
 
 ## Global enforcement assumed (provided by oh-my-claudecode)
 
-The harness is assumed to enforce these controls mechanically:
+### MUST (owner: global-harness): satisfy harness verification gates before completion
+
+The harness enforces these controls mechanically:
 - `acceptance-gate`: Blocks completion claims without passing tests
 - `backpressure-gate`: Slows down after repeated failures
 - Architect verification is required before completion

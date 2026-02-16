@@ -4,6 +4,7 @@
 
 - `owner: global-harness` → enforced by oh-my-claudecode platform/harness.
 - `owner: local-policy` → enforced by this repository’s policy docs and review process.
+- Any `MUST` without an explicit owner tag defaults to `owner: local-policy` unless explicitly stated otherwise.
 
 ## Conflict resolution order (when global and local diverge)
 

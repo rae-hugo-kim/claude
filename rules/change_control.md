@@ -2,7 +2,9 @@
 
 ## Global enforcement assumed (provided by oh-my-claudecode)
 
-The harness is assumed to enforce these controls mechanically:
+### MUST (owner: global-harness): respect harness-enforced scope and context gates
+
+The harness enforces these controls mechanically:
 - `scope-gate`: Blocks edits to files outside defined scope (via `current-scope.md`)
 - `context-gate`: Blocks edits to files not yet read
 
