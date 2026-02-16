@@ -77,29 +77,29 @@ source_commit_hash: 03e12a011a5c49411b6e6585e53768e9a02e265f
 
 ## 연결된 모듈
 
-- Safety & security: [`rules/safety_security.md`](rules/safety_security.md)
-- Anti-hallucination & evidence: [`rules/anti_hallucination.md`](rules/anti_hallucination.md)
-- Repo command discovery: [`rules/repo_command_discovery.md`](rules/repo_command_discovery.md)
-- Context7 trigger policy: [`rules/context7_policy.md`](rules/context7_policy.md)
-- Verification (tests + evals): [`rules/verification_tests_and_evals.md`](rules/verification_tests_and_evals.md)
-- Change control (minimal change, scope, tidy): [`rules/change_control.md`](rules/change_control.md)
-- Documentation policy (optional): [`rules/documentation_policy.md`](rules/documentation_policy.md)
-- Assetization (spec/decision/retro): [`rules/assetization.md`](rules/assetization.md)
-- Commit/PR discipline: [`rules/commit_and_pr.md`](rules/commit_and_pr.md)
+- Safety & security: [`rules/safety_security.md`](../rules/safety_security.md)
+- Anti-hallucination & evidence: [`rules/anti_hallucination.md`](../rules/anti_hallucination.md)
+- Repo command discovery: [`rules/repo_command_discovery.md`](../rules/repo_command_discovery.md)
+- Context7 trigger policy: [`rules/context7_policy.md`](../rules/context7_policy.md)
+- Verification (tests + evals): [`rules/verification_tests_and_evals.md`](../rules/verification_tests_and_evals.md)
+- Change control (minimal change, scope, tidy): [`rules/change_control.md`](../rules/change_control.md)
+- Documentation policy (optional): [`rules/documentation_policy.md`](../rules/documentation_policy.md)
+- Assetization (spec/decision/retro): [`rules/assetization.md`](../rules/assetization.md)
+- Commit/PR discipline: [`rules/commit_and_pr.md`](../rules/commit_and_pr.md)
 
 ## 체크리스트 (필요 시 사용)
 
-- Planning: [`checklists/plan.md`](checklists/plan.md)
-- Verification: [`checklists/verify.md`](checklists/verify.md)
-- Risky actions: [`checklists/risky_actions.md`](checklists/risky_actions.md)
-- Bugfix protocol: [`checklists/bugfix.md`](checklists/bugfix.md)
-- PR body: [`checklists/pr.md`](checklists/pr.md)
+- Planning: [`checklists/plan.md`](../checklists/plan.md)
+- Verification: [`checklists/verify.md`](../checklists/verify.md)
+- Risky actions: [`checklists/risky_actions.md`](../checklists/risky_actions.md)
+- Bugfix protocol: [`checklists/bugfix.md`](../checklists/bugfix.md)
+- PR body: [`checklists/pr.md`](../checklists/pr.md)
 
 ## 템플릿
 
-- Assumptions: [`templates/assumptions.md`](templates/assumptions.md)
-- Decision log: [`templates/decision_log.md`](templates/decision_log.md)
-- PR description: [`templates/pr_body.md`](templates/pr_body.md)
-- Retro note: [`templates/retro.md`](templates/retro.md)
+- Assumptions: [`templates/assumptions.md`](../templates/assumptions.md)
+- Decision log: [`templates/decision_log.md`](../templates/decision_log.md)
+- PR description: [`templates/pr_body.md`](../templates/pr_body.md)
+- Retro note: [`templates/retro.md`](../templates/retro.md)
 
 
