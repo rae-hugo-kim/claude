@@ -15,10 +15,9 @@ Guidelines for Claude Code when working in this repository.
 | Purpose | Location |
 |---------|----------|
 | Folder structure | [`INDEX.md`](../INDEX.md) |
-| MVP overview | [`docs/product/vibe-invest/mvp/README.md`](../docs/product/vibe-invest/mvp/README.md) |
-| Feature list & dependencies | [`docs/product/vibe-invest/mvp/features/INDEX.md`](../docs/product/vibe-invest/mvp/features/INDEX.md) |
-| User scenarios | [`docs/product/vibe-invest/mvp/user-story/INDEX.md`](../docs/product/vibe-invest/mvp/user-story/INDEX.md) |
-| Vision & roadmap | [`docs/product/vibe-invest/vision.md`](../docs/product/vibe-invest/vision.md) |
+| Policy entry point | [`CLAUDE.md`](../CLAUDE.md) |
+| Project-specific examples | [`claudedocs/INDEX.md`](./INDEX.md) |
+| Team agreements & notes | [`claudedocs/agreements.md`](./agreements.md) |
 
 ---
 
@@ -130,5 +129,4 @@ Changes:
 - **No real trading** (MVP stage)
 - No securities broker API integration
 - Focus only on simulation and advisory features
-
 
