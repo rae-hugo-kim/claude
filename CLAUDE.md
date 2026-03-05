@@ -46,6 +46,32 @@ Harness verification contract details: [`rules/harness_integration_contract.md`]
 4) **Change Control** (minimal change, scoped diffs)
 5) **Maintainability** (readability, tidy refactors)
 
+## Core Principles
+
+### 1. Think Before Coding
+- State assumptions explicitly. If uncertain, ask.
+- If multiple interpretations exist, present them — don't pick silently.
+- If a simpler approach exists, say so. Push back when warranted.
+- → Detail: [`rules/anti_hallucination.md`](rules/anti_hallucination.md)
+
+### 2. Simplicity First
+- No features beyond what was asked. No abstractions for single-use code.
+- If you write 200 lines and it could be 50, rewrite it.
+- Self-check: "Would a senior engineer say this is overcomplicated?"
+- → Detail: [`rules/change_control.md`](rules/change_control.md)
+
+### 3. Surgical Changes
+- Edit only lines that trace directly to the user's request.
+- Match existing style. Don't "improve" adjacent code.
+- If you notice unrelated issues, mention them — don't fix them.
+- → Detail: [`rules/change_control.md`](rules/change_control.md)
+
+### 4. Goal-Driven Execution
+- Transform vague tasks into verifiable goals with success criteria.
+- "Fix the bug" → "Write a test that reproduces it, then make it pass"
+- Each step should have: [action] → verify: [check]
+- → Detail: [`rules/verification_tests_and_evals.md`](rules/verification_tests_and_evals.md), [`rules/tdd_policy.md`](rules/tdd_policy.md)
+
 ## Non-Negotiables (MUST)
 
 - **No guessing**: do not invent versions, commands, APIs, or files.

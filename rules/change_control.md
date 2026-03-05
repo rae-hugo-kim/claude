@@ -1,14 +1,6 @@
 # Change Control (Scope, Minimal Change, Tidy)
 
-## Harness Integration
-
-**Note**: If oh-my-claudecode harness is active, the following are enforced automatically:
-- `scope-gate`: Blocks edits to files outside defined scope (via `current-scope.md`)
-- `context-gate`: Blocks edits to files not yet read
-
-This document defines the *principles*; harness enforces them mechanically.
-
----
+<!-- Harness: scope-gate, context-gate enforce this automatically -->
 
 ## MUST: minimal change first
 
@@ -50,4 +42,6 @@ BEHAVIORAL examples:
 - If test infrastructure exists and the change is code logic, prefer test-first or add a regression test early.
 - If tests are not feasible in the repo context, provide a deterministic alternative verification artifact.
 
-
+## Self-Check
+- [ ] Does every changed line trace directly to the user's request?
+- [ ] Would a senior engineer say this change is overcomplicated?

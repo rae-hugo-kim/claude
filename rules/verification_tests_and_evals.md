@@ -23,6 +23,24 @@ For any user-impacting change, provide at least one reproducible verification ar
 - An eval case + harness run, or
 - A deterministic manual reproduction procedure (only if automation is not feasible)
 
+## Goal Transformation Examples
+
+Transform vague requests into verifiable goals before starting work:
+
+| Vague Request | Verifiable Goal |
+|--------------|-----------------|
+| "Fix authentication" | "Write test: password change → old session invalidated → make it pass" |
+| "Make search faster" | "Measure current latency → set target (500ms→100ms) → verify" |
+| "Add validation" | "Write tests for invalid inputs → make them pass" |
+| "Refactor X" | "Ensure all tests pass → restructure → verify tests still pass" |
+
+For multi-step tasks, state a brief plan:
+```
+1. [Step] → verify: [check]
+2. [Step] → verify: [check]
+3. [Step] → verify: [check]
+```
+
 ## Docs/Policy-Only Change Mode
 
 Use this mode when the diff is limited to **pure markdown/policy navigation/template edits** and has no runtime behavior impact.
@@ -85,9 +103,9 @@ You MUST (owner: local-policy) add or extend an eval harness/case when the chang
 - Data quality heuristics (normalization, dedupe, labeling)
 - Performance baselines (latency/throughput) where regression must be detected
 
-If deterministic tests exist, keep them — evals complement tests, they don’t replace them.
+If deterministic tests exist, keep them — evals complement tests, they don't replace them.
 
-## Examples: “tests are enough” vs “evals are needed”
+## Examples: "tests are enough" vs "evals are needed"
 
 - Tests are enough:
   - Pure business rule logic (eligibility, fee calculation, state transitions)
@@ -95,10 +113,10 @@ If deterministic tests exist, keep them — evals complement tests, they don’t
   - Deterministic formatting with strict expected output
 
 - Evals are needed (or strongly preferred):
-  - “Top-N results improved” claims
-  - “Quality feels better” claims (LLM or ranking)
-  - “Visual output looks the same” claims
-  - “Performance is stable” claims
+  - "Top-N results improved" claims
+  - "Quality feels better" claims (LLM or ranking)
+  - "Visual output looks the same" claims
+  - "Performance is stable" claims
 
 ## Suggested eval structure (if the repo supports it)
 
@@ -114,3 +132,7 @@ In the final summary/PR body, include:
 - What was run (commands)
 - What passed/failed
 - Any skipped gates and why
+
+## Self-Check
+- [ ] Did I transform the task into a verifiable goal before starting?
+- [ ] Did I run verification and include evidence in my completion summary?

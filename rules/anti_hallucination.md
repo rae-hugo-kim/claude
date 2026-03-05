@@ -36,6 +36,8 @@ If you cannot find evidence quickly:
 - Provide 2–3 safe next steps
 - Ask for confirmation if any step increases risk
 
-
+## Self-Check
+- [ ] Did I cite evidence (file path / command output) for every key claim?
+- [ ] Did I check the evidence ladder before asserting a version or command?
 
 
