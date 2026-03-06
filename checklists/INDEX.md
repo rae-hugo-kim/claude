@@ -5,6 +5,9 @@
 - Risky actions approval gate: [`risky_actions.md`](risky_actions.md)
 - Bugfix protocol: [`bugfix.md`](bugfix.md)
 - PR checklist: [`pr.md`](pr.md)
+- Code review: [`code_review.md`](code_review.md)
+- Quality gate: [`quality_gate.md`](quality_gate.md)
+- Eval (EDD): [`eval.md`](eval.md)
 
 
 

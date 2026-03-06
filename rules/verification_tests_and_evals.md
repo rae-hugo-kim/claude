@@ -133,6 +133,29 @@ In the final summary/PR body, include:
 - What passed/failed
 - Any skipped gates and why
 
+## Eval-Driven Development (EDD) Workflow
+
+When a task involves a quality surface (LLM output, ranking, visual output, performance), follow EDD:
+
+1. **Define eval before code**: write eval cases (inputs + expected outputs) _before_ implementation.
+2. **Select a grader**: exact-match, includes, semantic, rubric-based, code-execution, or human. Prefer deterministic (code-based) graders over model-based ones.
+3. **Set pass criteria**: specify pass@k threshold (e.g., pass@3 > 90%). For critical paths, use pass^k (all k attempts must succeed).
+4. **Record baseline**: if modifying existing behavior, capture current eval results first.
+5. **Run evals during implementation**: after each significant change, not just at the end.
+6. **Generate eval report**: document results using `templates/eval_report.md`.
+
+Templates: [`templates/eval_definition.md`](../templates/eval_definition.md), [`templates/eval_report.md`](../templates/eval_report.md)
+Checklist: [`checklists/eval.md`](../checklists/eval.md)
+
+### Eval Anti-Patterns (MUST NOT)
+
+- Do not write evals after the fact to rubber-stamp existing behavior.
+- Do not remove or weaken eval cases to make results pass.
+- Do not test more than one behavior per eval — split instead.
+- Do not rely solely on human graders for anything that runs in CI.
+- Do not ignore cost per eval run — track tokens and estimated cost.
+
 ## Self-Check
 - [ ] Did I transform the task into a verifiable goal before starting?
 - [ ] Did I run verification and include evidence in my completion summary?
+- [ ] If the change affects a quality surface, did I follow the EDD workflow?

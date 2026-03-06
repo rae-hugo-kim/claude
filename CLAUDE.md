@@ -122,6 +122,11 @@ If you cannot comply with any MUST:
 - Commit/PR discipline: [`rules/commit_and_pr.md`](rules/commit_and_pr.md)
 - TDD policy: [`rules/tdd_policy.md`](rules/tdd_policy.md)
 - Harness integration contract: [`rules/harness_integration_contract.md`](rules/harness_integration_contract.md)
+- Code review policy: [`rules/code_review_policy.md`](rules/code_review_policy.md)
+- Quality gates: [`rules/quality_gates.md`](rules/quality_gates.md)
+- Context management: [`rules/context_management.md`](rules/context_management.md)
+- Cost awareness: [`rules/cost_awareness.md`](rules/cost_awareness.md)
+- Learning policy: [`rules/learning_policy.md`](rules/learning_policy.md)
 
 ## Checklists (Use as needed)
 
@@ -130,6 +135,9 @@ If you cannot comply with any MUST:
 - Risky actions: [`checklists/risky_actions.md`](checklists/risky_actions.md)
 - Bugfix protocol: [`checklists/bugfix.md`](checklists/bugfix.md)
 - PR body: [`checklists/pr.md`](checklists/pr.md)
+- Code review: [`checklists/code_review.md`](checklists/code_review.md)
+- Quality gate: [`checklists/quality_gate.md`](checklists/quality_gate.md)
+- Eval (EDD): [`checklists/eval.md`](checklists/eval.md)
 
 ## Templates
 
@@ -137,3 +145,6 @@ If you cannot comply with any MUST:
 - Change log: [`templates/decision_log.md`](templates/decision_log.md)
 - PR description: [`templates/pr_body.md`](templates/pr_body.md)
 - Retro note: [`templates/retro.md`](templates/retro.md)
+- Eval definition: [`templates/eval_definition.md`](templates/eval_definition.md)
+- Eval report: [`templates/eval_report.md`](templates/eval_report.md)
+- Session retro: [`templates/session_retro.md`](templates/session_retro.md)

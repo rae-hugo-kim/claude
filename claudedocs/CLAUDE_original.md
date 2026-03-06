@@ -2,6 +2,8 @@
 warning_type: reference_only
 non_normative_reference_only: true
 last_sync_date: 2026-02-16
+stale_since: 2026-03-06
+stale_reason: "CLAUDE.md updated with new linked modules (code_review_policy, quality_gates, context_management, cost_awareness, learning_policy), new checklists (code_review, quality_gate, eval), new templates (eval_definition, eval_report, session_retro)"
 source_of_truth: ../CLAUDE.md
 source_commit_hash: 03e12a011a5c49411b6e6585e53768e9a02e265f
 <!-- policy-sync-warning:end -->

@@ -24,9 +24,11 @@ If both global and local guidance exist for the same tool choice, apply global-h
 
 ## Quality rails
 
-- Verification (tests + evals): [`verification_tests_and_evals.md`](verification_tests_and_evals.md)
+- Verification (tests + evals + EDD): [`verification_tests_and_evals.md`](verification_tests_and_evals.md)
 - Change control (minimal change, scope, Tidy First triggers): [`change_control.md`](change_control.md)
 - TDD policy (RED → GREEN → TIDY): [`tdd_policy.md`](tdd_policy.md)
+- Code review policy (severity, thresholds, confidence gating): [`code_review_policy.md`](code_review_policy.md)
+- Quality gates (FORMAT/LINT/TYPECHECK/TEST/BUILD/EVAL): [`quality_gates.md`](quality_gates.md)
 
 ## Tool rails
 
@@ -39,6 +41,24 @@ If both global and local guidance exist for the same tool choice, apply global-h
 - Commit & PR discipline: [`commit_and_pr.md`](commit_and_pr.md)
 - Harness integration contract: [`harness_integration_contract.md`](harness_integration_contract.md)
 
+## Operational rails
+
+- Context management (compaction, phase transitions): [`context_management.md`](context_management.md)
+- Cost awareness (model selection, token efficiency): [`cost_awareness.md`](cost_awareness.md)
+- Learning policy (when/how to capture learnings): [`learning_policy.md`](learning_policy.md)
+
 ## Optional
 
 - Documentation policy (language, README vs INDEX, latest-only option): [`documentation_policy.md`](documentation_policy.md)
+
+## Enforcement Profiles
+
+Teams can adopt policies gradually. Pick a profile and enforce only those rules:
+
+| Profile | What's enforced |
+|---------|----------------|
+| **minimal** | Core rails only: safety, anti-hallucination, repo command discovery |
+| **standard** | Minimal + quality rails: verification, change control, TDD, code review, quality gates |
+| **strict** | Standard + operational rails: context management, cost awareness, learning policy + all checklists mandatory |
+
+Start with `minimal`, graduate to `standard` when comfortable, then `strict` for full governance.
