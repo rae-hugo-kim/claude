@@ -127,6 +127,10 @@ If you cannot comply with any MUST:
 - Context management: [`rules/context_management.md`](rules/context_management.md)
 - Cost awareness: [`rules/cost_awareness.md`](rules/cost_awareness.md)
 - Learning policy: [`rules/learning_policy.md`](rules/learning_policy.md)
+- Coding standards: [`rules/coding_standards.md`](rules/coding_standards.md)
+- Agent security: [`rules/agent_security.md`](rules/agent_security.md)
+- Hook recipes: [`rules/hook_recipes.md`](rules/hook_recipes.md)
+- Session persistence: [`rules/session_persistence.md`](rules/session_persistence.md)
 
 ## Checklists (Use as needed)
 
@@ -138,6 +142,7 @@ If you cannot comply with any MUST:
 - Code review: [`checklists/code_review.md`](checklists/code_review.md)
 - Quality gate: [`checklists/quality_gate.md`](checklists/quality_gate.md)
 - Eval (EDD): [`checklists/eval.md`](checklists/eval.md)
+- Research before implement: [`checklists/research_before_implement.md`](checklists/research_before_implement.md)
 
 ## Templates
 

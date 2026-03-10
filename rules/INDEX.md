@@ -19,11 +19,13 @@ If both global and local guidance exist for the same tool choice, apply global-h
 ## Core rails
 
 - Safety & security (hard rails): [`safety_security.md`](safety_security.md)
+- Agent security (adversarial threats, prompt injection defense): [`agent_security.md`](agent_security.md)
 - Anti-hallucination & evidence ladder: [`anti_hallucination.md`](anti_hallucination.md)
 - Repo command discovery (never guess commands): [`repo_command_discovery.md`](repo_command_discovery.md)
 
 ## Quality rails
 
+- Coding standards (immutability, file limits, input validation): [`coding_standards.md`](coding_standards.md)
 - Verification (tests + evals + EDD): [`verification_tests_and_evals.md`](verification_tests_and_evals.md)
 - Change control (minimal change, scope, Tidy First triggers): [`change_control.md`](change_control.md)
 - TDD policy (RED → GREEN → TIDY): [`tdd_policy.md`](tdd_policy.md)
@@ -34,6 +36,7 @@ If both global and local guidance exist for the same tool choice, apply global-h
 
 - MCP server policies (when/how to use): [`mcp_policy.md`](mcp_policy.md)
 - Context7 policy (trigger-based): [`context7_policy.md`](context7_policy.md)
+- Hook recipes (concrete hook implementations): [`hook_recipes.md`](hook_recipes.md)
 
 ## Process rails
 
@@ -44,6 +47,7 @@ If both global and local guidance exist for the same tool choice, apply global-h
 ## Operational rails
 
 - Context management (compaction, phase transitions): [`context_management.md`](context_management.md)
+- Session persistence (cross-session state, context loading): [`session_persistence.md`](session_persistence.md)
 - Cost awareness (model selection, token efficiency): [`cost_awareness.md`](cost_awareness.md)
 - Learning policy (when/how to capture learnings): [`learning_policy.md`](learning_policy.md)
 
@@ -57,8 +61,8 @@ Teams can adopt policies gradually. Pick a profile and enforce only those rules:
 
 | Profile | What's enforced |
 |---------|----------------|
-| **minimal** | Core rails only: safety, anti-hallucination, repo command discovery |
-| **standard** | Minimal + quality rails: verification, change control, TDD, code review, quality gates |
-| **strict** | Standard + operational rails: context management, cost awareness, learning policy + all checklists mandatory |
+| **minimal** | Core rails only: safety, agent security, anti-hallucination, repo command discovery |
+| **standard** | Minimal + quality rails: coding standards, verification, change control, TDD, code review, quality gates |
+| **strict** | Standard + operational rails: context management, session persistence, cost awareness, learning policy + all checklists mandatory |
 
 Start with `minimal`, graduate to `standard` when comfortable, then `strict` for full governance.
