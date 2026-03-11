@@ -1,11 +1,9 @@
 <!-- policy-sync-warning:start -->
 warning_type: reference_only
 non_normative_reference_only: true
-last_sync_date: 2026-02-16
-stale_since: 2026-03-06
-stale_reason: "CLAUDE.md updated with new linked modules (code_review_policy, quality_gates, context_management, cost_awareness, learning_policy), new checklists (code_review, quality_gate, eval), new templates (eval_definition, eval_report, session_retro)"
+last_sync_date: 2026-03-11
 source_of_truth: ../CLAUDE.md
-source_commit_hash: 03e12a011a5c49411b6e6585e53768e9a02e265f
+source_commit_hash: a89b027917a2ee3b1f6a4456dfd471555a342be7
 <!-- policy-sync-warning:end -->
 
 # CLAUDE.md (Team Standard)
@@ -26,6 +24,37 @@ source_commit_hash: 03e12a011a5c49411b6e6585e53768e9a02e265f
 4) **Verify(검증)**: 빠른 검증 → 필요 시 전체 게이트 순으로 실행한다.
 5) **Commit/PR(기록)**: 작은 단위로 커밋하고, 결정/가정/회고를 남긴다.
 
+### oh-my-claudecode 통합
+
+이 레포는 **oh-my-claudecode**가 전역으로 활성화되어 있다고 가정한다. 다음 항목은 자동으로 적용된다:
+
+| 항목 | 방법 | 이 파일의 역할 |
+|------|------|---------------|
+| 코드 변경 | executor 에이전트에 위임 | N/A (전역 규칙) |
+| 스코프 적용 | harness `scope-gate` 훅 | 프로젝트별 규칙으로 보완 |
+| 편집 전 파일 읽기 | harness `context-gate` 훅 | N/A (자동 적용) |
+| 완료 검증 | Architect 에이전트 | 증거 요구사항으로 보완 |
+| 실패 시 백프레셔 | harness `backpressure-gate` 훅 | N/A (자동 적용) |
+
+**이 파일이 추가하는 것**: 프로젝트별 제약, 증거 기준, 문서화 요구사항.
+
+Harness 검증 계약 상세: [`../rules/harness_integration_contract.md`](../rules/harness_integration_contract.md)
+
+### 용어 (RFC 2119)
+- **MUST**: 필수. 준수할 수 없으면 예외 프로토콜을 따른다.
+- **SHOULD**: 기본 기대치. 짧은 이유를 남기면 생략 가능.
+- **MAY**: 선택.
+
+### Non-Negotiables (MUST)
+
+- **추측 금지**: 버전, 커맨드, API, 파일을 임의로 발명하지 않는다.
+- **레포 커맨드**: build/test/lint/typecheck/e2e/eval 커맨드는 추측하지 않는다. 탐지한다.
+- **위험 작업**: 제안/실행 전 명시적 승인 필요.
+- **검증**: 사용자 영향 변경에는 재현 가능한 검증 아티팩트가 최소 하나 있어야 한다.
+- **Docs/policy-only 모드**: 순수 마크다운/정책/템플릿 편집의 경우 `../rules/verification_tests_and_evals.md`의 docs-only 검증 경로를 따르고 필요한 증거 형식을 포함한다.
+- **증거**: 주요 결정에 대해 구체적인 증거(파일 경로 + 발췌 또는 커맨드 출력)를 인용한다.
+- **Reference doc sync**: 동일 PR에서 `claudedocs/CLAUDEKR.md`와 `claudedocs/CLAUDE_original.md`를 업데이트하거나 명시적으로 stale로 표시한다.
+
 ### Reference doc sync (MUST)
 - **Reference doc sync**: in the same PR, update `claudedocs/CLAUDEKR.md` and `claudedocs/CLAUDE_original.md` or explicitly mark them as stale.
 
@@ -35,6 +64,8 @@ source_commit_hash: 03e12a011a5c49411b6e6585e53768e9a02e265f
 ---
 
 ## 1) 안전 & 보안 (Hard Rails)
+
+상세 참조: [`../rules/safety_security.md`](../rules/safety_security.md), [`../rules/agent_security.md`](../rules/agent_security.md)
 
 ### 위험 작업은 명시적 승인 필요
 다음은 요청/승인 없이 실행/제안하지 않는다:
@@ -62,7 +93,18 @@ source_commit_hash: 03e12a011a5c49411b6e6585e53768e9a02e265f
 
 ## 3) MCP: Context7 규칙
 
-### 반드시 사용해야 하는 경우
+상세 참조: [`../rules/mcp_policy.md`](../rules/mcp_policy.md), [`../rules/context7_policy.md`](../rules/context7_policy.md)
+
+### MCP 서버 정책 (트리거 기반)
+
+| MCP 서버 | 정책 |
+|----------|------|
+| **Context7** | 신규 외부 API/SDK/dependency, 버전민감 문법에 MUST 사용 |
+| **Serena** | 심볼 탐색, 리팩토링, 코드 이해에 SHOULD 사용 |
+| **Supabase** | DDL에는 마이그레이션 MUST; 쿼리에는 직접 SQL MAY |
+| **Web Search** | 최신 이벤트, 오류, 최신 문서에 SHOULD 사용 |
+
+### Context7 반드시 사용해야 하는 경우
 - 신규 dependency 설치/설정
 - 외부 API/SDK 사용
 - 프레임워크 boilerplate/config 생성
@@ -97,6 +139,14 @@ source_commit_hash: 03e12a011a5c49411b6e6585e53768e9a02e265f
 - 상속보다 조합, 조건문보다 다형성
 - SOLID는 과잉추상화 없이 “필요할 때” 적용
 
+### 코딩 표준
+
+상세 참조: [`../rules/coding_standards.md`](../rules/coding_standards.md)
+
+- **불변성(Immutability)**: 가능하면 불변 데이터 구조를 선호한다. 상태 변이를 최소화한다.
+- **파일 크기 제한**: 단일 파일이 너무 길어지면 모듈로 분리한다. 가독성과 유지보수성 우선.
+- **단일 책임**: 각 파일/모듈/함수는 하나의 책임만 가진다.
+
 ---
 
 ## 5) TDD + Tidy First (필수)
@@ -125,6 +175,18 @@ source_commit_hash: 03e12a011a5c49411b6e6585e53768e9a02e265f
 ---
 
 ## 6) Verification: Tests + Evaluation Set
+
+상세 참조: [`../rules/verification_tests_and_evals.md`](../rules/verification_tests_and_evals.md)
+
+### EDD (Eval-Driven Development)
+
+EDD는 TDD와 유사하게, 평가셋(eval)을 먼저 정의하고 구현하는 방식이다.
+
+절차:
+1) **Eval 정의**: `templates/eval_definition.md`로 입력/기대결과/지표 정의 ([`../templates/eval_definition.md`](../templates/eval_definition.md))
+2) **구현**: 최소 변경으로 eval을 통과시킨다
+3) **Eval 보고**: `templates/eval_report.md`로 결과 문서화 ([`../templates/eval_report.md`](../templates/eval_report.md))
+4) **체크리스트**: `checklists/eval.md`를 사용한다 ([`../checklists/eval.md`](../checklists/eval.md))
 
 ### 테스트 피라미드
 - Unit: 빠르고 격리된 비즈니스 규칙
@@ -191,6 +253,14 @@ source_commit_hash: 03e12a011a5c49411b6e6585e53768e9a02e265f
 - 회고: PR 코멘트 또는 `docs/retros/`
 - 재사용 프롬프트: `.claude/commands/` 또는 `prompts/`
 
+### 템플릿 참조
+
+| 템플릿 | 용도 | 링크 |
+|--------|------|------|
+| Eval 정의 | 평가셋 입력/기대결과/지표 정의 | [`../templates/eval_definition.md`](../templates/eval_definition.md) |
+| Eval 보고 | 평가 결과 문서화 | [`../templates/eval_report.md`](../templates/eval_report.md) |
+| 세션 회고 | 세션별 학습/개선 기록 | [`../templates/session_retro.md`](../templates/session_retro.md) |
+
 PR 최소 포함:
 - 변경 요약(1–3 bullets)
 - 수행한 검증(tests/eval)
@@ -214,5 +284,57 @@ PR 최소 포함:
 - 이 파일은 항상-on 레일이다. 길어지면 `docs/`로 내리고 여기엔 링크만 둔다.
 - 같은 실패가 반복되면 “트리거 기반 규칙”으로 예방한다.
 - 장문 철학보다 체크리스트/프로토콜을 선호한다.
+
+### 연결된 모듈
+
+| 모듈 | 링크 |
+|------|------|
+| 안전 & 보안 | [`../rules/safety_security.md`](../rules/safety_security.md) |
+| 에이전트 보안 | [`../rules/agent_security.md`](../rules/agent_security.md) |
+| Anti-hallucination & 증거 | [`../rules/anti_hallucination.md`](../rules/anti_hallucination.md) |
+| 레포 커맨드 탐지 | [`../rules/repo_command_discovery.md`](../rules/repo_command_discovery.md) |
+| MCP 서버 정책 | [`../rules/mcp_policy.md`](../rules/mcp_policy.md) |
+| Context7 트리거 정책 | [`../rules/context7_policy.md`](../rules/context7_policy.md) |
+| 검증 (테스트 + eval) | [`../rules/verification_tests_and_evals.md`](../rules/verification_tests_and_evals.md) |
+| 변경 제어 | [`../rules/change_control.md`](../rules/change_control.md) |
+| 문서화 정책 | [`../rules/documentation_policy.md`](../rules/documentation_policy.md) |
+| 자산화 | [`../rules/assetization.md`](../rules/assetization.md) |
+| 커밋/PR 규율 | [`../rules/commit_and_pr.md`](../rules/commit_and_pr.md) |
+| TDD 정책 | [`../rules/tdd_policy.md`](../rules/tdd_policy.md) |
+| Harness 통합 계약 | [`../rules/harness_integration_contract.md`](../rules/harness_integration_contract.md) |
+| 코드 리뷰 정책 | [`../rules/code_review_policy.md`](../rules/code_review_policy.md) |
+| 품질 게이트 | [`../rules/quality_gates.md`](../rules/quality_gates.md) |
+| 컨텍스트 관리 | [`../rules/context_management.md`](../rules/context_management.md) |
+| 비용 인식 | [`../rules/cost_awareness.md`](../rules/cost_awareness.md) |
+| 학습 정책 | [`../rules/learning_policy.md`](../rules/learning_policy.md) |
+| 코딩 표준 | [`../rules/coding_standards.md`](../rules/coding_standards.md) |
+| 훅 레시피 | [`../rules/hook_recipes.md`](../rules/hook_recipes.md) |
+| 세션 지속성 | [`../rules/session_persistence.md`](../rules/session_persistence.md) |
+
+### 체크리스트
+
+| 체크리스트 | 링크 |
+|-----------|------|
+| 계획 | [`../checklists/plan.md`](../checklists/plan.md) |
+| 검증 | [`../checklists/verify.md`](../checklists/verify.md) |
+| 위험 작업 | [`../checklists/risky_actions.md`](../checklists/risky_actions.md) |
+| 버그 수정 | [`../checklists/bugfix.md`](../checklists/bugfix.md) |
+| PR 본문 | [`../checklists/pr.md`](../checklists/pr.md) |
+| 코드 리뷰 | [`../checklists/code_review.md`](../checklists/code_review.md) |
+| 품질 게이트 | [`../checklists/quality_gate.md`](../checklists/quality_gate.md) |
+| Eval (EDD) | [`../checklists/eval.md`](../checklists/eval.md) |
+| 구현 전 리서치 | [`../checklists/research_before_implement.md`](../checklists/research_before_implement.md) |
+
+### 템플릿
+
+| 템플릿 | 링크 |
+|--------|------|
+| 가정 | [`../templates/assumptions.md`](../templates/assumptions.md) |
+| 변경 로그 | [`../templates/decision_log.md`](../templates/decision_log.md) |
+| PR 설명 | [`../templates/pr_body.md`](../templates/pr_body.md) |
+| 회고 | [`../templates/retro.md`](../templates/retro.md) |
+| Eval 정의 | [`../templates/eval_definition.md`](../templates/eval_definition.md) |
+| Eval 보고 | [`../templates/eval_report.md`](../templates/eval_report.md) |
+| 세션 회고 | [`../templates/session_retro.md`](../templates/session_retro.md) |
 
 
