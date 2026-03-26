@@ -55,14 +55,3 @@ If both global and local guidance exist for the same tool choice, apply global-h
 
 - Documentation policy (language, README vs INDEX, latest-only option): [`documentation_policy.md`](documentation_policy.md)
 
-## Enforcement Profiles
-
-Teams can adopt policies gradually. Pick a profile and enforce only those rules:
-
-| Profile | What's enforced |
-|---------|----------------|
-| **minimal** | Core rails only: safety, agent security, anti-hallucination, repo command discovery |
-| **standard** | Minimal + quality rails: coding standards, verification, change control, TDD, code review, quality gates |
-| **strict** | Standard + operational rails: context management, session persistence, cost awareness, learning policy + all checklists mandatory |
-
-Start with `minimal`, graduate to `standard` when comfortable, then `strict` for full governance.
