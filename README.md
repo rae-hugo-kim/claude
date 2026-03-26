@@ -28,11 +28,47 @@ git clone https://github.com/rae-hugo-kim/claude.git
 
 ## How to Deploy
 
-1. **As a template**: Click "Use this template" on GitHub to create a new repo based on this structure.
-2. **Copy into existing project**: Copy `CLAUDE.md` and the directories you need into your project root.
-3. **Customize**: Edit `CLAUDE.md`, rules, checklists, and templates to fit your project's needs.
+1. **With `/init` skill** (recommended):
+   ```bash
+   /init my-new-project          # public repo
+   /init my-new-project --private # private repo
+   ```
+2. **With gh CLI**:
+   ```bash
+   gh repo create my-new-project --template rae-hugo-kim/claude --clone
+   ```
+3. **Copy into existing project**: Copy `CLAUDE.md` and the directories you need into your project root.
 
 Claude Code will automatically read `CLAUDE.md` from the project root when you start a session.
+
+## Skills
+
+| Skill | Command | Purpose |
+|-------|---------|---------|
+| **init** | `/init <name>` | Create new project from this template |
+| **kickoff** | `/kickoff` | Project/feature scope interview (JTBD → Scope → AC) |
+| **startdev** | `/startdev` | TDD-gated implementation with seed.yaml |
+| **sum** | `/sum` | Save session summary to `docs/sum/` |
+| **compr** | `/compr` | Create branch, commit, push, and open PR |
+| **compush** | `/compush` | Auto commit and push |
+| **tidy** | `/tidy` | Refactor with Kent Beck's Tidy First |
+
+### Workflow
+
+```
+/init my-project → /kickoff → /startdev → /compr
+```
+
+## Harness
+
+The kickoff → startdev workflow is powered by a harness system:
+
+- **seed.yaml** — Structured kickoff output (goal, constraints, AC, risks)
+- **Rubric** — 4-dimension clarity gate (HIGH/MED/LOW)
+- **Audit log** — Append-only JSONL event trail
+- **scope-gate** hook — Blocks edits to out-of-scope paths
+- **acceptance-gate** hook — Blocks commits with unmet AC
+- **Glossary** — Project terminology alignment (`docs/glossary.yaml`)
 
 ## Core Principles
 
@@ -77,11 +113,47 @@ git clone https://github.com/rae-hugo-kim/claude.git
 
 ## 배포 방법
 
-1. **템플릿으로 사용**: GitHub에서 "Use this template"을 클릭하여 이 구조를 기반으로 새 저장소를 생성합니다.
-2. **기존 프로젝트에 복사**: `CLAUDE.md`와 필요한 디렉토리를 프로젝트 루트에 복사합니다.
-3. **커스터마이즈**: `CLAUDE.md`, 규칙, 체크리스트, 템플릿을 프로젝트에 맞게 수정합니다.
+1. **`/init` 스킬 사용** (권장):
+   ```bash
+   /init my-new-project          # public repo
+   /init my-new-project --private # private repo
+   ```
+2. **gh CLI 사용**:
+   ```bash
+   gh repo create my-new-project --template rae-hugo-kim/claude --clone
+   ```
+3. **기존 프로젝트에 복사**: `CLAUDE.md`와 필요한 디렉토리를 프로젝트 루트에 복사합니다.
 
 Claude Code는 세션 시작 시 프로젝트 루트의 `CLAUDE.md`를 자동으로 읽습니다.
+
+## 스킬
+
+| 스킬 | 명령어 | 용도 |
+|------|--------|------|
+| **init** | `/init <이름>` | 이 템플릿에서 새 프로젝트 생성 |
+| **kickoff** | `/kickoff` | 프로젝트/기능 스코프 인터뷰 (JTBD → Scope → AC) |
+| **startdev** | `/startdev` | seed.yaml 기반 TDD 구현 시작 |
+| **sum** | `/sum` | 세션 요약을 `docs/sum/`에 저장 |
+| **compr** | `/compr` | 브랜치 생성, 커밋, 푸시, PR 오픈 |
+| **compush** | `/compush` | 자동 커밋 및 푸시 |
+| **tidy** | `/tidy` | Kent Beck의 Tidy First 리팩토링 |
+
+### 워크플로우
+
+```
+/init my-project → /kickoff → /startdev → /compr
+```
+
+## 하네스
+
+kickoff → startdev 워크플로우는 하네스 시스템으로 구동됩니다:
+
+- **seed.yaml** — 구조화된 킥오프 산출물 (goal, constraints, AC, risks)
+- **Rubric** — 4차원 명확도 게이트 (HIGH/MED/LOW)
+- **Audit log** — Append-only JSONL 이벤트 기록
+- **scope-gate** 훅 — out_of_scope 경로 편집 차단
+- **acceptance-gate** 훅 — 수락 기준 미충족 시 커밋 차단
+- **Glossary** — 프로젝트 용어 정렬 (`docs/glossary.yaml`)
 
 ## 핵심 원칙
 
