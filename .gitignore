@@ -2,4 +2,6 @@
 # Local files
 .claude/*
 !.claude/skills/
+!.claude/hooks/
+!.claude/settings.json
 docs/sum/
