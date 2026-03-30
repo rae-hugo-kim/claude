@@ -56,15 +56,18 @@ Creates a new GitHub repository based on this template.
 │   └── INDEX.md           Full listing
 ├── checklists/            Task checklists (10)
 ├── templates/             Reusable templates (8)
-├── .claude/skills/        Skill definitions
-│   ├── bootstrap/         Environment setup
-│   ├── init/              Project creation
-│   ├── kickoff/           Scope interview
-│   ├── startdev/          TDD implementation
-│   ├── compr/             PR creation
-│   ├── compush/           Commit + push
-│   ├── sum/               Session summary
-│   └── tidy/              Refactoring
+├── .claude/
+│   ├── skills/            Skill definitions
+│   │   ├── bootstrap/     Environment setup
+│   │   ├── init/          Project creation
+│   │   ├── kickoff/       Scope interview
+│   │   ├── startdev/      TDD implementation
+│   │   ├── compr/         PR creation
+│   │   ├── compush/       Commit + push
+│   │   ├── sum/           Session summary
+│   │   └── tidy/          Refactoring
+│   ├── hooks/harness/     Harness hooks (7)
+│   └── settings.json      Hook registration
 ├── docs/harness/          Harness runtime files
 └── claudedocs/            Reference docs
 ```

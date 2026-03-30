@@ -20,13 +20,17 @@ This file is **always-on** agent policy. Keep it short.
 
 This repo assumes **oh-my-claudecode** is active globally. The following are enforced automatically:
 
-| What | How | This File's Role |
-|------|-----|------------------|
+| What | How | Hook Location |
+|------|-----|---------------|
 | Code changes | Delegated to executor agents | N/A (global rule) |
-| Scope enforcement | harness `scope-gate` hook | Supplements with project-specific rules |
-| Pre-edit file read | harness `context-gate` hook | N/A (auto-enforced) |
-| Completion verification | Architect agent | Supplements with evidence requirements |
-| Backpressure on failures | harness `backpressure-gate` hook | N/A (auto-enforced) |
+| Scope enforcement | `scope-gate` hook | `.claude/hooks/harness/` |
+| Pre-edit file read | `context-gate` + `read-tracker` hooks | `.claude/hooks/harness/` |
+| Completion verification | Architect agent | N/A (global rule) |
+| Backpressure on failures | `backpressure-gate` + `backpressure-tracker` hooks | `.claude/hooks/harness/` |
+| Acceptance criteria | `acceptance-gate` hook | `.claude/hooks/harness/` |
+| New work detection | `kickoff-detector` hook | `.claude/hooks/harness/` |
+
+All hooks are registered in `.claude/settings.json` and included in this repo.
 
 **What this file adds**: Project-specific constraints, evidence standards, and documentation requirements.
 

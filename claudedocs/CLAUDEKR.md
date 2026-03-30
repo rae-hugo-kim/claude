@@ -2,6 +2,7 @@
 warning_type: reference_only
 non_normative_reference_only: true
 last_sync_date: 2026-03-11
+status: STALE — CLAUDE.md updated 2026-03-30 (hooks, bootstrap, integration table). Re-sync needed.
 source_of_truth: ../CLAUDE.md
 source_commit_hash: a89b027917a2ee3b1f6a4456dfd471555a342be7
 <!-- policy-sync-warning:end -->

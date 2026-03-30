@@ -1,16 +1,24 @@
 # Harness Integration Contract
 
-This document defines the repo-level contract for validating oh-my-claudecode harness integration before an agent claims policy compliance.
+This document defines the repo-level contract for validating harness integration before an agent claims policy compliance.
+
+## Hook Location
+
+All hooks are in `.claude/hooks/harness/` and registered in `.claude/settings.json`.
+Runtime state is stored in `.omc/harness-state/` (project-local, gitignored).
 
 ## Required Gates and Hook Names
 
 The following controls are required when harness is available:
 
-1. `scope-gate` hook (scope enforcement)
-2. `context-gate` hook (pre-edit file-read enforcement)
-3. `acceptance-gate` hook (completion acceptance checks)
-4. `backpressure-gate` hook (failure backpressure / retry pressure)
-5. Architect verification (independent completion verification)
+1. `scope-gate` hook — blocks edits to out-of-scope paths (PreToolUse: Edit|Write)
+2. `context-gate` hook — blocks edits to unread files (PreToolUse: Edit|Write)
+3. `read-tracker` hook — records file reads for context-gate (PostToolUse: Read)
+4. `acceptance-gate` hook — blocks commits with unmet acceptance criteria (PreToolUse: Bash)
+5. `backpressure-gate` hook — blocks commits if build/test/lint failed (PreToolUse: Bash)
+6. `backpressure-tracker` hook — records build/test/lint results (PostToolUse: Bash)
+7. `kickoff-detector` hook — reminds about kickoff for new work (UserPromptSubmit)
+8. Architect verification — independent completion verification (oh-my-claudecode agent)
 
 ## Gate Verification Requirements
 
@@ -18,77 +26,50 @@ Use concrete checks, not assumptions.
 
 ### 1) `scope-gate`
 
-- Command:
-  - `ls ~/.claude/hooks | rg "scope-gate"`
-- Log location:
-  - `~/.claude/logs/hook-events.log` (or repo-local hook event logs if configured)
-- Signature strings:
-  - `scope-gate`
-  - `scope_violation`
-  - `scope_check_passed`
+- File: `.claude/hooks/harness/scope-gate.mjs`
+- Log: `.omc/harness-state/hook-debug.log`
+- Reads: `docs/harness/seed.yaml` (out_of_scope) or `docs/harness/current-scope.md`
 
-### 2) `context-gate`
+### 2) `context-gate` + `read-tracker`
 
-- Command:
-  - `ls ~/.claude/hooks | rg "context-gate"`
-- Log location:
-  - `~/.claude/logs/hook-events.log`
-- Signature strings:
-  - `context-gate`
-  - `pre_edit_read_required`
-  - `context_check_passed`
+- Files: `.claude/hooks/harness/context-gate.mjs`, `.claude/hooks/harness/read-tracker.mjs`
+- Log: `.omc/harness-state/hook-debug.log`
+- State: `.omc/harness-state/read-log.txt`
 
 ### 3) `acceptance-gate`
 
-- Command:
-  - `ls ~/.claude/hooks | rg "acceptance-gate"`
-- Log location:
-  - `~/.claude/logs/hook-events.log`
-- Signature strings:
-  - `acceptance-gate`
-  - `acceptance_missing_evidence`
-  - `acceptance_check_passed`
+- File: `.claude/hooks/harness/acceptance-gate.mjs`
+- Log: `.omc/harness-state/hook-debug.log`
+- Reads: `docs/harness/current-scope.md` (checkboxes), `docs/harness/seed.yaml` (AC), `docs/harness/acceptance-done` (override flag)
 
-### 4) `backpressure-gate`
+### 4) `backpressure-gate` + `backpressure-tracker`
 
-- Command:
-  - `ls ~/.claude/hooks | rg "backpressure-gate"`
-- Log location:
-  - `~/.claude/logs/hook-events.log`
-- Signature strings:
-  - `backpressure-gate`
-  - `retry_blocked`
-  - `backpressure_applied`
+- Files: `.claude/hooks/harness/backpressure-gate.mjs`, `.claude/hooks/harness/backpressure-tracker.mjs`
+- Log: `.omc/harness-state/hook-debug.log`
+- State: `.omc/harness-state/backpressure-status`, `.omc/harness-state/test-history.json`
 
-### 5) Architect verification
+### 5) `kickoff-detector`
 
-- Command:
-  - `ls ~/.claude/agents | rg -i "architect"`
-- Log location:
-  - `~/.claude/logs/agents/architect.log` (or equivalent multi-agent run log)
-- Signature strings:
-  - `architect_verification_started`
-  - `architect_verification_passed`
-  - `architect_verification_failed`
+- File: `.claude/hooks/harness/kickoff-detector.mjs`
+- Reads: `docs/harness/kickoff-done` (suppresses reminder if exists)
+
+### 6) Architect verification
+
+- Provided by oh-my-claudecode `architect` agent
+- Not a file hook — invoked via agent delegation
 
 ## Startup Checklist (Run Before Claiming Compliance)
 
-Run this checklist at session start:
-
-1. Confirm hooks directory exists and is readable.
-2. Confirm all four hook names resolve (`scope/context/acceptance/backpressure`).
-3. Confirm Architect agent configuration is present.
-4. Confirm hook/agent log files are writable and have current-session entries.
-5. Trigger one benign action and verify at least one current-session hook log entry appears.
-6. Record harness status in your working notes and final PR report.
-
-Recommended quick check sequence:
-
-- `test -d ~/.claude/hooks && echo hooks_ok`
-- `for g in scope-gate context-gate acceptance-gate backpressure-gate; do ls ~/.claude/hooks | rg -x "$g"; done`
-- `ls ~/.claude/hooks | rg -x "scope-gate|context-gate|acceptance-gate|backpressure-gate" | wc -l` (MUST be `4`)
-- `test -d ~/.claude/agents && ls ~/.claude/agents | rg -i "architect"`
-- `test -f ~/.claude/logs/hook-events.log && tail -n 20 ~/.claude/logs/hook-events.log`
+1. Confirm hooks directory exists: `test -d .claude/hooks/harness && echo hooks_ok`
+2. Confirm all hook files are present:
+   ```bash
+   for h in scope-gate context-gate read-tracker acceptance-gate backpressure-gate backpressure-tracker kickoff-detector; do
+     test -f ".claude/hooks/harness/$h.mjs" && echo "$h: ok" || echo "$h: MISSING"
+   done
+   ```
+3. Confirm settings.json registers hooks: `cat .claude/settings.json | grep -c "hooks/harness"` (should be 7)
+4. Confirm Architect agent is available via oh-my-claudecode
+5. Record harness status in your working notes and final PR report
 
 ## Fallback Behavior When a Gate Is Unavailable
 
@@ -120,11 +101,12 @@ When downgrading, final report MUST include:
 
 | Symptom | Likely cause | Safe mitigation |
 |---|---|---|
-| Hook name not found in `~/.claude/hooks` | Partial install or renamed hook file | Re-sync harness install; if blocked, activate manual checklist downgrade and document it |
-| Hook exists but no events in `hook-events.log` | Hook not wired to current profile/session | Verify active profile/config, restart session, re-run benign trigger, then recheck logs |
-| `acceptance-gate` repeatedly blocks completion | Missing evidence block or required verification fields | Add explicit verification commands/results + file citations, then retry |
-| `backpressure-gate` loops on failures | Underlying failing test/check never addressed | Stop retries, fix or scope out failing check, then re-run once with documented rationale |
-| Architect log missing for completed task | Architect agent disabled/unavailable in environment | Run manual two-pass verification and mark Architect as downgraded in report |
+| Hook file not found in `.claude/hooks/harness/` | Partial clone or deleted hook file | Re-clone template or restore from git; if blocked, activate manual checklist downgrade |
+| Hook exists but no events in `.omc/harness-state/hook-debug.log` | Hook not registered in `.claude/settings.json` | Verify settings.json hook entries, restart session, re-run benign trigger |
+| `acceptance-gate` repeatedly blocks completion | Missing evidence or unchecked AC in `current-scope.md` | Check off completed criteria or create `docs/harness/acceptance-done` override |
+| `backpressure-gate` loops on failures | Underlying failing test/check never addressed | Stop retries, fix root cause, then re-run once with documented rationale |
+| `context-gate` blocks unexpectedly | `read-log.txt` missing or stale | Read the file first; if persistent, check read-tracker is registered in settings.json |
+| Architect log missing for completed task | oh-my-claudecode not installed or architect agent unavailable | Run manual two-pass verification and mark Architect as downgraded in report |
 
 ## Copy-Paste Verification Template
 

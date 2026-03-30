@@ -117,18 +117,6 @@ Prevents running dev servers directly — they should run in tmux for log access
 
 ---
 
-## Profile Guide
-
-Which hooks to enable per enforcement profile (from `rules/INDEX.md`):
-
-| Hook | minimal | standard | strict |
-|------|---------|----------|--------|
-| Block large files | - | Yes | Yes |
-| TODO/FIXME warning | - | - | Yes |
-| Test file reminder | - | Yes | Yes |
-| Auto-format | - | Yes | Yes |
-| Dev server blocker | Yes | Yes | Yes |
-
 ---
 
 ## Writing Custom Hooks

@@ -1,6 +1,8 @@
 # Bootstrap Guide: oh-my-claudecode + this policy repo
 
-This guide is a practical first-day checklist for making sure your global **oh-my-claudecode** environment and this repo's policy layer are aligned.
+> **NOTE**: This document is a legacy reference. For automated environment setup, use the `/bootstrap` skill instead.
+
+This guide is a manual checklist for verifying your **oh-my-claudecode** environment and this repo's policy layer are aligned.
 
 ## 1) Prerequisites
 
