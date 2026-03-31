@@ -47,15 +47,15 @@ Creates a new GitHub repository based on this template.
 ```
 .
 ├── CLAUDE.md              Agent policy entry point
-├── rules/                 Behavior rules (19)
+├── rules/                 Behavior rules
 │   ├── safety_security    Safety & security
 │   ├── anti_hallucination Evidence-based behavior
 │   ├── change_control     Minimal change principle
 │   ├── tdd_policy         RED → GREEN → TIDY
 │   ├── ...                Each file has a one-line description
 │   └── INDEX.md           Full listing
-├── checklists/            Task checklists (10)
-├── templates/             Reusable templates (8)
+├── checklists/            Task checklists
+├── templates/             Reusable templates
 ├── .claude/
 │   ├── skills/            Skill definitions
 │   │   ├── bootstrap/     Environment setup
@@ -66,7 +66,7 @@ Creates a new GitHub repository based on this template.
 │   │   ├── compush/       Commit + push
 │   │   ├── sum/           Session summary
 │   │   └── tidy/          Refactoring
-│   ├── hooks/harness/     Harness hooks (7)
+│   ├── hooks/harness/     Harness hooks
 │   └── settings.json      Hook registration
 ├── docs/harness/          Harness runtime files
 └── claudedocs/            Reference docs
@@ -91,7 +91,10 @@ Automated guardrails that activate during the kickoff → startdev flow:
 
 - **seed.yaml** — Structured kickoff output (goals, constraints, AC, risks)
 - **scope-gate hook** — Blocks edits to out-of-scope paths
+- **context-gate + read-tracker hooks** — Prevents editing unread files
 - **acceptance-gate hook** — Blocks commits with unmet acceptance criteria
+- **backpressure hooks** — Suppresses commits without verification (gate + tracker)
+- **kickoff-detector hook** — Reminds to kickoff when new work is detected
 - **rubric** — 4-dimension clarity gate (HIGH/MED/LOW)
 - **audit log** — Event tracking (append-only JSONL)
 - **glossary** — Project terminology alignment (`docs/glossary.yaml`)
@@ -104,9 +107,10 @@ Delete the ones you don't need — the rest keeps working.
 | Category | Rules |
 |----------|-------|
 | **Safety** | safety_security, agent_security, anti_hallucination, repo_command_discovery |
-| **Quality** | coding_standards, verification, change_control, tdd_policy, code_review_policy, quality_gates |
+| **Quality** | coding_standards, verification_tests_and_evals, change_control, tdd_policy, code_review_policy, quality_gates |
 | **Tools** | mcp_policy, context7_policy, hook_recipes |
 | **Process** | assetization, commit_and_pr, harness_integration_contract |
+| **Docs** | documentation_policy |
 | **Operations** | context_management, session_persistence, cost_awareness, learning_policy |
 
 ## Core Principles

@@ -47,6 +47,7 @@ Use concrete checks, not assumptions.
 - Files: `.claude/hooks/harness/backpressure-gate.mjs`, `.claude/hooks/harness/backpressure-tracker.mjs`
 - Log: `.omc/harness-state/hook-debug.log`
 - State: `.omc/harness-state/backpressure-status`, `.omc/harness-state/test-history.json`
+- **Known limitation**: `backpressure-tracker` runs on PostToolUse (success only). Claude Code does not invoke PostToolUse hooks on tool failure, so failed build/test/lint results are not recorded. `backpressure-gate` can only verify the presence of recent success, not detect failures directly.
 
 ### 5) `kickoff-detector`
 

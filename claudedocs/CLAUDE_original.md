@@ -1,341 +1,505 @@
 <!-- policy-sync-warning:start -->
 warning_type: reference_only
 non_normative_reference_only: true
-last_sync_date: 2026-03-11
-status: STALE — CLAUDE.md updated 2026-03-30 (hooks, bootstrap, integration table). Re-sync needed.
+last_sync_date: 2026-03-31
+status: synced
 source_of_truth: ../CLAUDE.md
-source_commit_hash: a89b027917a2ee3b1f6a4456dfd471555a342be7
+source_commit_hash: 9388ab2f9f3746adc23b23dd0ae25733b7c5d821
 <!-- policy-sync-warning:end -->
 
-# CLAUDE.md (Team Standard)
-이 파일은 항상 로드됩니다. 여러 레포에서 공용으로 사용합니다.
-핵심은 “추측 금지 + 짧은 검증 루프 + 자산화(스펙/회고/평가셋)”입니다.
+# CLAUDE.md (Team Standard) — Expanded English Reference
+
+This document is the **self-contained, long-form English version** of the agent policy in `CLAUDE.md`.
+It is a non-normative reference: the source of truth is always `../CLAUDE.md`.
+Unlike `CLAUDE.md`, this file inlines key details from linked modules so you do not need to read them separately.
 
 ---
 
-## 0) 운영 계약 (필수)
+## Overview
 
-### 목표
-가장 적은 리스크로 올바른 변경을 배포한다. 이를 위해 **검증 가능한 루프**를 최우선으로 한다.
+This policy is **always-on** agent policy for all repos where it is active. The core philosophy is:
 
-### 기본 워크플로우 (항상)
-1) **Explore(탐색)**: 관련 파일/설정/CI/락파일을 읽고 사실을 확보한다. 이 단계에서 코드 수정 금지.
-2) **Plan(계획)**: 작고 검증 가능한 변경 계획을 제시한다(테스트/평가 포함).
-3) **Implement(구현)**: 최소 변경으로 구현한다.
-4) **Verify(검증)**: 빠른 검증 → 필요 시 전체 게이트 순으로 실행한다.
-5) **Commit/PR(기록)**: 작은 단위로 커밋하고, 결정/가정/회고를 남긴다.
+> Deploy correct changes with minimal risk. Prioritize verifiable loops over speed.
 
-### oh-my-claudecode 통합
+The policy is **layered**: `CLAUDE.md` is the short authoritative version. Linked modules expand each rule. This document inlines those expansions for convenience.
 
-이 레포는 **oh-my-claudecode**가 전역으로 활성화되어 있다고 가정한다. 다음 항목은 자동으로 적용된다:
+---
 
-| 항목 | 방법 | 이 파일의 역할 |
-|------|------|---------------|
-| 코드 변경 | executor 에이전트에 위임 | N/A (전역 규칙) |
-| 스코프 적용 | harness `scope-gate` 훅 | 프로젝트별 규칙으로 보완 |
-| 편집 전 파일 읽기 | harness `context-gate` 훅 | N/A (자동 적용) |
-| 완료 검증 | Architect 에이전트 | 증거 요구사항으로 보완 |
-| 실패 시 백프레셔 | harness `backpressure-gate` 훅 | N/A (자동 적용) |
+## Navigation (Source Indexes)
 
-**이 파일이 추가하는 것**: 프로젝트별 제약, 증거 기준, 문서화 요구사항.
+When working in the repo, start with `CLAUDE.md`, then consult:
 
-Harness 검증 계약 상세: [`../rules/harness_integration_contract.md`](../rules/harness_integration_contract.md)
+- `INDEX.md` — top-level directory index
+- `rules/INDEX.md` — all policy modules
+- `checklists/INDEX.md` — all checklists
+- `templates/INDEX.md` — all templates
 
-### 용어 (RFC 2119)
-- **MUST**: 필수. 준수할 수 없으면 예외 프로토콜을 따른다.
-- **SHOULD**: 기본 기대치. 짧은 이유를 남기면 생략 가능.
-- **MAY**: 선택.
+---
 
-### Non-Negotiables (MUST)
+## Scope and Precedence
 
-- **추측 금지**: 버전, 커맨드, API, 파일을 임의로 발명하지 않는다.
-- **레포 커맨드**: build/test/lint/typecheck/e2e/eval 커맨드는 추측하지 않는다. 탐지한다.
-- **위험 작업**: 제안/실행 전 명시적 승인 필요.
-- **검증**: 사용자 영향 변경에는 재현 가능한 검증 아티팩트가 최소 하나 있어야 한다.
-- **Docs/policy-only 모드**: 순수 마크다운/정책/템플릿 편집의 경우 `../rules/verification_tests_and_evals.md`의 docs-only 검증 경로를 따르고 필요한 증거 형식을 포함한다.
-- **증거**: 주요 결정에 대해 구체적인 증거(파일 경로 + 발췌 또는 커맨드 출력)를 인용한다.
-- **Reference doc sync**: 동일 PR에서 `claudedocs/CLAUDEKR.md`와 `claudedocs/CLAUDE_original.md`를 업데이트하거나 명시적으로 stale로 표시한다.
+- This policy applies to the repo/workspace when the agent is active.
+- If a linked module conflicts with `CLAUDE.md`, **`CLAUDE.md` wins**.
+- This policy **complements** oh-my-claudecode global rules — it does not replace them.
 
-### Reference doc sync (MUST)
+### Priority Order (Conflict Resolution)
+
+When rules conflict, resolve in this order:
+
+1. **Safety & Security** — never compromised
+2. **Repo Truth** — lockfiles, manifests, CI config, repo docs are authoritative
+3. **Verification** — tests, evals, and replicable checks take precedence over assumptions
+4. **Change Control** — minimal change, scoped diffs
+5. **Maintainability** — readability and tidy refactors, lowest priority
+
+---
+
+## Terminology (RFC 2119)
+
+- **MUST**: required. If you cannot comply, follow the Exception Protocol.
+- **SHOULD**: default expectation; may be skipped with a short, explicit rationale.
+- **MAY**: optional.
+
+---
+
+## oh-my-claudecode Integration
+
+This repo assumes **oh-my-claudecode** is active globally. The harness hooks and global agent rules handle the following automatically:
+
+| What | How | Hook Location |
+|------|-----|---------------|
+| Code changes | Delegated to executor agents | N/A (global rule) |
+| Scope enforcement | `scope-gate` hook | `.claude/hooks/harness/` |
+| Pre-edit file read | `context-gate` + `read-tracker` hooks | `.claude/hooks/harness/` |
+| Completion verification | Architect agent | N/A (global rule) |
+| Backpressure on failures | `backpressure-gate` + `backpressure-tracker` hooks | `.claude/hooks/harness/` |
+| Acceptance criteria | `acceptance-gate` hook | `.claude/hooks/harness/` |
+| New work detection | `kickoff-detector` hook | `.claude/hooks/harness/` |
+
+All hooks are registered in `.claude/settings.json` and included in the repo.
+
+**What `CLAUDE.md` adds on top of the global rules**: project-specific constraints, evidence standards, and documentation requirements.
+
+### Harness Hook Details
+
+Each hook enforces a specific gate:
+
+1. **`scope-gate`** (PreToolUse: Edit/Write) — blocks edits to out-of-scope paths. Reads `docs/harness/seed.yaml` (out_of_scope list) or `docs/harness/current-scope.md`. Logs to `.omc/harness-state/hook-debug.log`.
+2. **`context-gate`** (PreToolUse: Edit/Write) — blocks edits to files that have not been read in the current session. Paired with `read-tracker`.
+3. **`read-tracker`** (PostToolUse: Read) — records file reads so `context-gate` knows what has been seen. State stored in `.omc/harness-state/read-log.txt`.
+4. **`acceptance-gate`** (PreToolUse: Bash) — blocks commits with unmet acceptance criteria. Reads `docs/harness/current-scope.md` checkboxes and `docs/harness/seed.yaml`.
+5. **`backpressure-gate`** (PreToolUse: Bash) — blocks commits if a previous build/test/lint run failed. Reads `.omc/harness-state/backpressure-status`.
+6. **`backpressure-tracker`** (PostToolUse: Bash) — records build/test/lint outcomes so `backpressure-gate` has current state.
+7. **`kickoff-detector`** (UserPromptSubmit) — reminds the agent to run a kickoff for new work. Suppressed by creating `docs/harness/kickoff-done`.
+
+#### Fallback When a Gate is Unavailable
+
+If a required gate is missing, do **not** claim automated harness compliance for that gate. Instead, apply manual downgrade:
+
+- Missing `scope-gate` → manually enumerate in-scope files before edits and re-check before commit.
+- Missing `context-gate` → manually record files read before each edit batch.
+- Missing `acceptance-gate` → provide explicit evidence section: commands, outputs, file citations.
+- Missing `backpressure-gate` → after any failed verification, halt feature work until failure is resolved.
+- Missing Architect verification → complete a second-pass review using `checklists/verify.md` before claiming done.
+
+Final report MUST name which gate was unavailable, how the manual checklist was applied, and the residual risk.
+
+---
+
+## Non-Negotiables (MUST)
+
+These are hard rules with no silent exceptions:
+
+- **No guessing**: do not invent versions, commands, APIs, or files.
+- **Repo commands**: never guess build/test/lint/typecheck/e2e/eval commands. Discover them from the repo (see Command Discovery section).
+- **Risky actions**: require explicit user approval before proposing or executing risky changes.
+- **Verification**: every user-impacting change must include at least one reproducible verification artifact.
+- **Docs/policy-only mode**: for pure markdown/policy/template edits, follow the docs-only verification path (diff review + checklist) and include its required evidence format.
+- **Evidence**: cite concrete evidence for key decisions — file paths + excerpts or command output.
 - **Reference doc sync**: in the same PR, update `claudedocs/CLAUDEKR.md` and `claudedocs/CLAUDE_original.md` or explicitly mark them as stale.
 
-### 코스 교정
-불명확하면 초기에 멈추고 가정/전제를 명시한다. 컨텍스트가 지저분해지면 작업 단위마다 정리한다.
+---
+
+## Core Principles
+
+### 1. Think Before Coding
+
+State assumptions explicitly before starting. If uncertain, ask.
+
+- If multiple interpretations exist, present them — do not pick silently.
+- If a simpler approach exists, say so and push back when warranted.
+- Do not invent facts. See Anti-Hallucination section.
+
+### 2. Simplicity First
+
+- Build the simplest thing that works. Add abstraction only when the need is proven (Rule of Three: abstract on the third instance of duplication).
+- YAGNI (You Aren't Gonna Need It) and KISS (Keep It Simple, Stupid) apply.
+- No future-proofing for requirements that do not exist yet.
+- Self-check: "Would a senior engineer say this is overcomplicated?"
+
+### 3. Surgical Changes
+
+- Edit only lines that trace directly to the user's request.
+- Match existing code style. Do not "improve" adjacent code while making a change.
+- If you notice unrelated issues, mention them explicitly — do not fix them silently.
+- Every changed line should be justifiable against the stated request.
+
+### 4. Goal-Driven Execution
+
+- Transform vague tasks into verifiable goals with explicit success criteria.
+- "Fix the bug" → "Write a test that reproduces the bug, then make it pass."
+- Each step should follow the pattern: [action] → verify: [check].
 
 ---
 
-## 1) 안전 & 보안 (Hard Rails)
+## Anti-Hallucination (No Guessing)
 
-상세 참조: [`../rules/safety_security.md`](../rules/safety_security.md), [`../rules/agent_security.md`](../rules/agent_security.md)
+Do not invent any of the following — find evidence or ask:
 
-### 위험 작업은 명시적 승인 필요
-다음은 요청/승인 없이 실행/제안하지 않는다:
-- 대량 삭제, 히스토리 재작성, force push, 전역 대규모 리팩토링
-- 롤백 계획 없는 파괴적 DB 변경/마이그레이션
-- 비밀/키/자격증명 취급, 프로덕션 직접 변경
+- Versions, commands, scripts, or CI steps
+- API options, flags, or config keys
+- File paths, directories, or existing symbols
 
-### 보안 규칙
-- `.env`, 토큰, 키, 크리덴셜은 민감정보다. PR/이슈/로그/커밋 메시지에 남기지 않는다.
-- 필요한 경우 마스킹/최소 노출을 지킨다.
+### Evidence Ladder
 
----
+For version-sensitive decisions or "what command to run" questions, establish evidence in this order:
 
-## 2) Anti-Hallucination (추측 금지 규율)
+1. **Lockfiles / manifests / tool config** (e.g., `package.json`, `pyproject.toml`, `go.mod`)
+2. **CI configuration** (actual executed steps in `.github/workflows/`, `gitlab-ci.yml`, etc.)
+3. **Repo docs** (README, CONTRIBUTING, ADRs)
+4. **Official docs via tooling** (e.g., Context7 MCP) when external library behavior matters
 
-### 버전/옵션/API는 추측하지 않는다
-중요한 버전/옵션/API는 다음 순서로 “근거”를 확보한다:
-1) lockfile / manifest / CI 설정
-2) 레포 문서(README, ADR 등)
-3) 문서 조회 도구(예: Context7)
+### Citing Evidence
 
-검증되지 않은 API/옵션은 사용하지 않는다.
+When asserting any of the following, include a file path + excerpt or command output:
 
----
+- "We use X version"
+- "The correct command is …"
+- "This option is supported / deprecated"
+- "This API exists"
 
-## 3) MCP: Context7 규칙
-
-상세 참조: [`../rules/mcp_policy.md`](../rules/mcp_policy.md), [`../rules/context7_policy.md`](../rules/context7_policy.md)
-
-### MCP 서버 정책 (트리거 기반)
-
-| MCP 서버 | 정책 |
-|----------|------|
-| **Context7** | 신규 외부 API/SDK/dependency, 버전민감 문법에 MUST 사용 |
-| **Serena** | 심볼 탐색, 리팩토링, 코드 이해에 SHOULD 사용 |
-| **Supabase** | DDL에는 마이그레이션 MUST; 쿼리에는 직접 SQL MAY |
-| **Web Search** | 최신 이벤트, 오류, 최신 문서에 SHOULD 사용 |
-
-### Context7 반드시 사용해야 하는 경우
-- 신규 dependency 설치/설정
-- 외부 API/SDK 사용
-- 프레임워크 boilerplate/config 생성
-- 버전별 문법/Deprecated 여부 확인
-
-### 사용 방법
-- 프롬프트에 `use context7`
-- 필요 시 `use library /org/project` (예: `/vercel/next.js`, `/prisma/prisma`)
-
-### 금지
-- Context7 없이 라이브러리 관련 코드 생성
-- 학습데이터 기반 추측
-- 문서에 없는 API/함수/옵션 사용
+If you cannot find evidence quickly: state what you checked, provide 2–3 safe next steps, ask for confirmation before any risky step.
 
 ---
 
-## 4) 핵심 개발 철학
+## Repo Command Discovery
 
-### Simplicity First (최상위)
-- 가장 단순한 working code부터. 필요해질 때만 추상화.
-- YAGNI/KISS 준수. Rule of Three(중복 3번째에 추상화).
-- 미래 예측 기능 추가 금지. 현재 요구사항만 충족.
+Never guess build/test/lint/typecheck/e2e/eval commands. Always discover them from the repo.
 
-### Clean Code
-- 중복 제거를 최우선
-- 네이밍과 구조로 의도 표현
-- 함수는 작고 단일 책임
-- 상태/사이드이펙트 최소화
+### Discovery Order
 
-### OOP / SOLID (실용 적용)
-- 캡슐화: 행동을 노출, getter/setter 남발 금지
-- 상속보다 조합, 조건문보다 다형성
-- SOLID는 과잉추상화 없이 “필요할 때” 적용
+1. `package.json` → `scripts` section (JS/TS projects)
+2. `Makefile` / `justfile` / `taskfile.yml`
+3. Python: `pyproject.toml` tool config, `noxfile.py`, `tox.ini`, `poetry`/`uv` config
+4. CI config (`.github/workflows/*`, `gitlab-ci.yml`) — look at actual executed steps
+5. README / CONTRIBUTING — explicitly documented commands
 
-### 코딩 표준
+### Fast vs. Full Gate Preference
 
-상세 참조: [`../rules/coding_standards.md`](../rules/coding_standards.md)
-
-- **불변성(Immutability)**: 가능하면 불변 데이터 구조를 선호한다. 상태 변이를 최소화한다.
-- **파일 크기 제한**: 단일 파일이 너무 길어지면 모듈로 분리한다. 가독성과 유지보수성 우선.
-- **단일 책임**: 각 파일/모듈/함수는 하나의 책임만 가진다.
+- Prefer "fast gates" first: `test:unit`, `test:smoke`, `lint`, `typecheck` if they exist.
+- If only a full suite exists, propose running "the smallest verification unit" first, but use only repo-provided commands.
+- Never invent scripts. If no commands exist, propose adding them and wait for confirmation.
 
 ---
 
-## 5) TDD + Tidy First (필수)
+## Safety & Security
 
-### TDD (Kent Beck)
-항상 Red → Green → Refactor
-- Red: 가장 단순한 실패 테스트부터 (테스트 없이 프로덕션 코드 금지)
-- Green: 최소 구현만
-- Refactor: green 상태에서만, 실패 시 즉시 롤백
+### Risky Actions Require Explicit Approval
 
-규칙:
-- 한 번에 테스트 1개
-- 테스트 결정론 보장(시간/랜덤/비동기 통제)
-- 유닛 테스트에서 외부 의존성(네트워크/파일/시간/랜덤/DB) 격리
+Do not execute or propose the following without explicit user request and approval:
 
-### Tidy First (구조/행동 분리)
-- STRUCTURAL(동작 불변)과 BEHAVIORAL(동작 변경)을 같은 커밋에 섞지 않는다.
-- 둘 다 필요하면 구조 변경 먼저, 별도 커밋, 이후 행동 변경.
+- Mass deletions, history rewrites, force pushes, global large-scale refactors
+- Destructive DB changes/migrations without a rollback plan
+- Handling secrets/keys/credentials
+- Direct production changes
 
-### 버그 수정 프로토콜
-1) API 레벨 회귀 테스트 추가
-2) 최소 재현 테스트 추가
-3) 최소 수정으로 통과
-4) green 이후 리팩토링
+### Security Rules
 
----
+- `.env` files, tokens, keys, and credentials are sensitive. Never include them in PRs, issues, logs, or commit messages.
+- Apply masking and minimal exposure when handling secrets is unavoidable.
 
-## 6) Verification: Tests + Evaluation Set
+### Agent Security
 
-상세 참조: [`../rules/verification_tests_and_evals.md`](../rules/verification_tests_and_evals.md)
-
-### EDD (Eval-Driven Development)
-
-EDD는 TDD와 유사하게, 평가셋(eval)을 먼저 정의하고 구현하는 방식이다.
-
-절차:
-1) **Eval 정의**: `templates/eval_definition.md`로 입력/기대결과/지표 정의 ([`../templates/eval_definition.md`](../templates/eval_definition.md))
-2) **구현**: 최소 변경으로 eval을 통과시킨다
-3) **Eval 보고**: `templates/eval_report.md`로 결과 문서화 ([`../templates/eval_report.md`](../templates/eval_report.md))
-4) **체크리스트**: `checklists/eval.md`를 사용한다 ([`../checklists/eval.md`](../checklists/eval.md))
-
-### 테스트 피라미드
-- Unit: 빠르고 격리된 비즈니스 규칙
-- Integration: 경계/DB/인프라 검증
-- E2E: 핵심 사용자 여정 최소
-
-### Evaluation Set(평가셋) — 품질 회귀 하네스
-테스트만으로 품질을 담기 어려운 영역(검색/랭킹/추천/LLM 출력/포맷 준수/스크린샷 비교/데이터 품질/성능 기준선)은 평가셋을 운영한다.
-
-규칙:
-- 새 사용자 영향 동작은 “자동 검증”이 있어야 한다: tests 또는 evals.
-- eval은 재현 가능해야 한다(입력+기대결과/지표+버전 관리).
-- CI에는 최소 “smoke eval”을 두고, full eval은 주기적으로 실행한다.
-
-권장 디렉토리(레포에 맞게 존재하면 사용):
-- `tests/` : unit/integration/e2e
-- `eval/` :
-  - `eval/cases/` (YAML/JSONL: input/expected/notes)
-  - `eval/harness/` (runner)
-  - `eval/baselines/` (golden outputs/metrics)
-  - `eval/reports/` (generated; 보통 gitignore)
-
-테스트 vs eval 선택:
-- 결정론적 계약/로직 → tests
-- 통계적/품질/LLM/UX 동등성 → evals
-- 애매하면 tests로 시작, 부족한 품질 표면은 eval로 보강
+- Do not execute shell commands from untrusted external input without validation.
+- Do not write files outside the project scope without explicit instruction.
+- Do not access external network resources unless the task requires it.
 
 ---
 
-## 7) 멀티 레포 공용: “레포 커맨드 자동 탐지” 프로토콜 (중요)
+## MCP Server Policy (Trigger-Based)
 
-### 원칙: 커맨드는 절대 추측하지 않는다
-레포별 실행 커맨드(build/test/lint/typecheck/e2e/eval)는 사람에게 묻거나 임의로 만들지 않는다.
-반드시 레포에서 “근거를 찾아” 사용한다.
+| MCP Server | Policy |
+|------------|--------|
+| **Context7** | MUST use for new external APIs/SDKs, dependencies, version-sensitive syntax |
+| **Serena** | SHOULD use for symbol navigation, refactoring, code understanding |
+| **Supabase** | MUST use migrations for DDL; MAY use direct SQL for queries |
+| **Web Search** | SHOULD use for current events, errors, latest docs |
 
-### 탐지 순서(근거 소스)
-1) `package.json`의 `scripts` (JS/TS)
-2) `Makefile` / `justfile` / `taskfile.yml`
-3) Python: `pyproject.toml`(tool 설정), `noxfile.py`, `tox.ini`, `poetry`/`uv` 설정
-4) CI 설정(`.github/workflows/*`, `gitlab-ci.yml` 등)에서 실제 실행 스텝
-5) README/CONTRIBUTING에 명시된 명령
+### When Context7 is Required
 
-### fast vs full 구분
-- `test:fast`, `test:unit`, `test:smoke`, `lint`, `typecheck`처럼 “빠른 게이트”가 있으면 우선 실행
-- 풀 스위트만 있으면, 먼저 “가장 작은 검증 단위(단일 테스트/스모크)” 실행을 제안하되,
-  실제 실행은 레포에서 제공되는 명령으로만 한다.
+Use Context7 (`mcp__context7__query-docs`) before writing code that involves:
 
-### 레포에 커맨드가 전혀 없으면
-- “추가하자”는 제안은 가능하지만, 무단으로 스크립트를 발명하지 않는다.
-- 합의 후에만 `scripts`/Makefile/CI에 표준 커맨드를 추가한다.
+- Installing or configuring a new dependency
+- Using an external API or SDK
+- Generating framework boilerplate or config files
+- Checking whether a syntax, option, or feature is current or deprecated
 
----
+Invocation: include `use context7` in the prompt, or specify `use library /org/project` (e.g., `/vercel/next.js`).
 
-## 8) 자산화 규칙 (AI 네이티브 루프)
-
-### Spec → Implement → Retro (사소하지 않은 변경은 필수)
-- 스펙(이슈/PR 설명 가능)을 남긴다.
-- 테스트/평가셋으로 검증한다.
-- 회고: 실패/학습/다음 번 프롬프트 개선 포인트를 기록한다.
-
-### 어디에 남길지(최소 규칙)
-- 스펙: Issue/PR description
-- 결정(왜): `docs/adr/` 또는 PR의 Decision Log
-- 회고: PR 코멘트 또는 `docs/retros/`
-- 재사용 프롬프트: `.claude/commands/` 또는 `prompts/`
-
-### 템플릿 참조
-
-| 템플릿 | 용도 | 링크 |
-|--------|------|------|
-| Eval 정의 | 평가셋 입력/기대결과/지표 정의 | [`../templates/eval_definition.md`](../templates/eval_definition.md) |
-| Eval 보고 | 평가 결과 문서화 | [`../templates/eval_report.md`](../templates/eval_report.md) |
-| 세션 회고 | 세션별 학습/개선 기록 | [`../templates/session_retro.md`](../templates/session_retro.md) |
-
-PR 최소 포함:
-- 변경 요약(1–3 bullets)
-- 수행한 검증(tests/eval)
-- 리스크/롤백(해당 시)
-- 새 가정/결정/회고(해당 시)
+**Prohibited without Context7**: generating library-related code based on training data alone when the library is version-sensitive.
 
 ---
 
-## 9) 커밋 규율 (필수)
+## Change Control
 
-- 관련 테스트/eval이 green일 때만 커밋
-- 린트/타입체크는 레포 기준을 따른다
-- 작은 커밋 선호
-- 구조 변경과 행동 변경은 분리 커밋
-- 필요 시 커밋 메시지에 STRUCTURAL/BEHAVIORAL 표시
+### Minimal Change First (MUST)
+
+- Prefer the smallest diff that meets the stated goal.
+- Do not add new abstractions unless required by the change.
+- Do not silently expand scope. Note additional issues, propose them as follow-up.
+
+### Tidy First: Structural vs. Behavioral Separation (SHOULD)
+
+When both structure cleanup and behavior change are needed:
+
+- Do STRUCTURAL changes first (behavior-preserving: renames, extractions, reformatting, test scaffolding).
+- Do BEHAVIORAL changes second (logic, API, output, business rule changes).
+- Separate commits when the repo uses commits as review units.
+- If single-commit workflow, clearly delineate STRUCTURAL and BEHAVIORAL sections in the PR description.
+
+**Self-check before committing:**
+- Does every changed line trace directly to the user's request?
+- Would a senior engineer say this change is overcomplicated?
 
 ---
 
-## 10) 유지보수 원칙 (이 파일 자체)
+## TDD Policy
 
-- 이 파일은 항상-on 레일이다. 길어지면 `docs/`로 내리고 여기엔 링크만 둔다.
-- 같은 실패가 반복되면 “트리거 기반 규칙”으로 예방한다.
-- 장문 철학보다 체크리스트/프로토콜을 선호한다.
+### Red → Green → Refactor (Kent Beck)
 
-### 연결된 모듈
+Always follow this cycle:
 
-| 모듈 | 링크 |
-|------|------|
-| 안전 & 보안 | [`../rules/safety_security.md`](../rules/safety_security.md) |
-| 에이전트 보안 | [`../rules/agent_security.md`](../rules/agent_security.md) |
-| Anti-hallucination & 증거 | [`../rules/anti_hallucination.md`](../rules/anti_hallucination.md) |
-| 레포 커맨드 탐지 | [`../rules/repo_command_discovery.md`](../rules/repo_command_discovery.md) |
-| MCP 서버 정책 | [`../rules/mcp_policy.md`](../rules/mcp_policy.md) |
-| Context7 트리거 정책 | [`../rules/context7_policy.md`](../rules/context7_policy.md) |
-| 검증 (테스트 + eval) | [`../rules/verification_tests_and_evals.md`](../rules/verification_tests_and_evals.md) |
-| 변경 제어 | [`../rules/change_control.md`](../rules/change_control.md) |
-| 문서화 정책 | [`../rules/documentation_policy.md`](../rules/documentation_policy.md) |
-| 자산화 | [`../rules/assetization.md`](../rules/assetization.md) |
-| 커밋/PR 규율 | [`../rules/commit_and_pr.md`](../rules/commit_and_pr.md) |
-| TDD 정책 | [`../rules/tdd_policy.md`](../rules/tdd_policy.md) |
-| Harness 통합 계약 | [`../rules/harness_integration_contract.md`](../rules/harness_integration_contract.md) |
-| 코드 리뷰 정책 | [`../rules/code_review_policy.md`](../rules/code_review_policy.md) |
-| 품질 게이트 | [`../rules/quality_gates.md`](../rules/quality_gates.md) |
-| 컨텍스트 관리 | [`../rules/context_management.md`](../rules/context_management.md) |
-| 비용 인식 | [`../rules/cost_awareness.md`](../rules/cost_awareness.md) |
-| 학습 정책 | [`../rules/learning_policy.md`](../rules/learning_policy.md) |
-| 코딩 표준 | [`../rules/coding_standards.md`](../rules/coding_standards.md) |
-| 훅 레시피 | [`../rules/hook_recipes.md`](../rules/hook_recipes.md) |
-| 세션 지속성 | [`../rules/session_persistence.md`](../rules/session_persistence.md) |
+1. **Red**: write the simplest failing test first. No production code before a test.
+2. **Green**: implement the minimum code to pass the test.
+3. **Refactor**: clean up only in the green state. If refactoring causes a failure, revert immediately.
 
-### 체크리스트
+**Rules:**
+- One test at a time.
+- Tests must be deterministic: control time, random, async, and external state.
+- In unit tests, isolate all external dependencies (network, filesystem, time, random, DB).
 
-| 체크리스트 | 링크 |
-|-----------|------|
-| 계획 | [`../checklists/plan.md`](../checklists/plan.md) |
-| 검증 | [`../checklists/verify.md`](../checklists/verify.md) |
-| 위험 작업 | [`../checklists/risky_actions.md`](../checklists/risky_actions.md) |
-| 버그 수정 | [`../checklists/bugfix.md`](../checklists/bugfix.md) |
-| PR 본문 | [`../checklists/pr.md`](../checklists/pr.md) |
-| 코드 리뷰 | [`../checklists/code_review.md`](../checklists/code_review.md) |
-| 품질 게이트 | [`../checklists/quality_gate.md`](../checklists/quality_gate.md) |
-| Eval (EDD) | [`../checklists/eval.md`](../checklists/eval.md) |
-| 구현 전 리서치 | [`../checklists/research_before_implement.md`](../checklists/research_before_implement.md) |
+### Bug Fix Protocol
 
-### 템플릿
+1. Add an API-level regression test that fails with the current code.
+2. Add the minimum reproduction test.
+3. Apply the minimum fix to make both pass.
+4. Refactor only after green.
 
-| 템플릿 | 링크 |
-|--------|------|
-| 가정 | [`../templates/assumptions.md`](../templates/assumptions.md) |
-| 변경 로그 | [`../templates/decision_log.md`](../templates/decision_log.md) |
-| PR 설명 | [`../templates/pr_body.md`](../templates/pr_body.md) |
-| 회고 | [`../templates/retro.md`](../templates/retro.md) |
-| Eval 정의 | [`../templates/eval_definition.md`](../templates/eval_definition.md) |
-| Eval 보고 | [`../templates/eval_report.md`](../templates/eval_report.md) |
-| 세션 회고 | [`../templates/session_retro.md`](../templates/session_retro.md) |
+### EDD: Eval-Driven Development
 
+For areas where deterministic tests are insufficient (search/ranking, LLM output quality, UI format compliance, performance baselines):
 
+1. **Define the eval**: use `templates/eval_definition.md` — specify inputs, expected outcomes, and metrics.
+2. **Implement**: make the minimum change to pass the eval.
+3. **Report**: document results using `templates/eval_report.md`.
+4. **Checklist**: use `checklists/eval.md`.
+
+Eval rules:
+- Every new user-impacting behavior MUST have automated verification: tests or evals.
+- Evals must be reproducible (versioned inputs + expected outcomes/metrics).
+- CI must include at minimum a "smoke eval"; full evals run periodically.
+
+Recommended directory layout (use if it exists in the repo):
+- `tests/` — unit / integration / e2e
+- `eval/cases/` — YAML/JSONL: input / expected / notes
+- `eval/harness/` — runner
+- `eval/baselines/` — golden outputs/metrics
+- `eval/reports/` — generated output (usually gitignored)
+
+**Tests vs. evals decision rule:**
+- Deterministic contract/logic → tests
+- Statistical, quality, LLM, or UX equivalence → evals
+- When in doubt, start with tests; add evals when tests cannot capture the quality surface
+
+### Test Pyramid
+
+- **Unit**: fast, isolated business rules
+- **Integration**: boundaries, DB, infrastructure
+- **E2E**: minimal coverage of critical user journeys only
+
+---
+
+## Verification Standards
+
+### Completion Contract (MUST)
+
+When claiming a task is "done", the final message MUST include:
+
+- **Applied rules**: which rules and checklists were applied
+- **Evidence**: concrete evidence for key claims (file paths + excerpts or command outputs)
+- **Verification**: what was run/done to verify (commands and results)
+
+Architect verification is handled by oh-my-claudecode global rules. This contract defines the *content* of the completion report.
+
+### Verification Before Completion
+
+Before claiming "done", "fixed", or "complete":
+
+1. Identify: what command proves this claim?
+2. Run: execute the verification command.
+3. Read: check the output — did it pass?
+4. Claim: make the claim with the evidence attached.
+
+Evidence required per claim type:
+- "Fixed" → test showing it passes now
+- "Implemented" → lsp_diagnostics clean + build pass
+- "Refactored" → all tests still pass
+- "Debugged" → root cause identified with file:line
+
+### Docs/Policy-Only Verification Path
+
+For pure markdown/policy/template edits (no code changes):
+
+- Evidence: a diff review confirming the change is correct
+- Checklist: confirm no links are broken, frontmatter is updated, cross-references are valid
+- No build/test run required, but the evidence section must still be present
+
+---
+
+## Assetization (Spec → Implement → Retro)
+
+For any non-trivial change, leave assets behind:
+
+- **Spec**: issue or PR description captures the goal and constraints
+- **Decision log**: record *why* (not just *what*) in `docs/adr/` or PR Decision Log
+- **Retro**: record failures, learnings, and prompt improvements in PR comments or `docs/retros/`
+- **Reusable prompts**: store in `.claude/commands/` or `prompts/`
+
+### PR Minimum Content
+
+Every PR description MUST include:
+
+- Change summary (1–3 bullets)
+- Verification performed (tests/eval commands + results)
+- Risk/rollback plan (if applicable)
+- New assumptions, decisions, or retro notes (if applicable)
+
+---
+
+## Commit Discipline
+
+- Commit only when related tests/evals are green.
+- Follow repo lint/typecheck standards before committing.
+- Prefer small, atomic commits over large batches.
+- Separate STRUCTURAL and BEHAVIORAL commits when the repo uses commits as review units.
+- Label commits `STRUCTURAL` or `BEHAVIORAL` in the message when separation is not possible.
+
+### Commit Message Format (oh-my-claudecode Convention)
+
+```
+<type>(<scope>): <short summary>
+
+<optional body>
+
+Constraint: <active constraint that shaped this decision>
+Rejected: <alternative considered> | <reason>
+Directive: <warning for future modifiers>
+Confidence: high | medium | low
+Scope-risk: narrow | moderate | broad
+Not-tested: <edge case not covered>
+```
+
+Trailers are optional for trivial commits (typos, formatting).
+
+---
+
+## Exception Protocol (MUST When Blocked)
+
+If you cannot comply with any MUST rule:
+
+1. State **why** — what constraint prevents compliance.
+2. Provide **2–3 alternatives** — safe options only.
+3. Ask for **explicit confirmation** if any alternative is risky or irreversible.
+
+Never silently skip a MUST. Always surface the conflict.
+
+---
+
+## Course Correction
+
+- When uncertain, stop early and state assumptions/prerequisites explicitly.
+- When the context becomes cluttered, clean it up at each work unit boundary.
+- When the same failure repeats 3+ times, escalate with full context rather than retrying.
+
+---
+
+## Reference Doc Sync Rule
+
+In the same PR where `CLAUDE.md` is updated, you MUST either:
+
+- Update `claudedocs/CLAUDEKR.md` and `claudedocs/CLAUDE_original.md` to reflect the changes, OR
+- Explicitly mark them as stale with a note explaining what changed.
+
+This applies symmetrically: if `CLAUDE_original.md` or `CLAUDEKR.md` is updated, `CLAUDE.md` must be reviewed for consistency.
+
+---
+
+## Module Index
+
+The following linked modules expand specific rules. Consult them for full detail:
+
+| Module | Purpose |
+|--------|---------|
+| `rules/safety_security.md` | Safety & security hard rails |
+| `rules/agent_security.md` | Agent-specific security rules |
+| `rules/anti_hallucination.md` | No-guessing discipline and evidence ladder |
+| `rules/repo_command_discovery.md` | How to discover build/test commands |
+| `rules/mcp_policy.md` | Full MCP server policies |
+| `rules/context7_policy.md` | When and how to use Context7 |
+| `rules/verification_tests_and_evals.md` | Tests, evals, EDD, verification paths |
+| `rules/change_control.md` | Minimal change, scope, Tidy First |
+| `rules/documentation_policy.md` | Documentation standards (optional) |
+| `rules/assetization.md` | Spec/decision/retro asset creation |
+| `rules/commit_and_pr.md` | Commit and PR discipline |
+| `rules/tdd_policy.md` | TDD policy and bug fix protocol |
+| `rules/harness_integration_contract.md` | Harness hook contract and fallback policy |
+| `rules/code_review_policy.md` | Code review standards |
+| `rules/quality_gates.md` | Quality gate definitions |
+| `rules/context_management.md` | Context window and session management |
+| `rules/cost_awareness.md` | Token cost awareness |
+| `rules/learning_policy.md` | How to capture and reuse learnings |
+| `rules/coding_standards.md` | Naming, immutability, file size, single responsibility |
+| `rules/hook_recipes.md` | Hook patterns and recipes |
+| `rules/session_persistence.md` | Session state and persistence rules |
+
+---
+
+## Checklists
+
+Use these at the appropriate phase of work:
+
+| Checklist | When to Use |
+|-----------|-------------|
+| `checklists/plan.md` | Before starting significant work |
+| `checklists/verify.md` | Before claiming completion |
+| `checklists/risky_actions.md` | Before any risky or irreversible action |
+| `checklists/bugfix.md` | During bug fix protocol |
+| `checklists/pr.md` | When writing PR descriptions |
+| `checklists/code_review.md` | When reviewing code |
+| `checklists/quality_gate.md` | Before merging |
+| `checklists/eval.md` | When defining or running evals (EDD) |
+| `checklists/research_before_implement.md` | Before implementing with external APIs/SDKs |
+
+---
+
+## Templates
+
+| Template | Purpose |
+|----------|---------|
+| `templates/assumptions.md` | Record explicit assumptions before starting |
+| `templates/decision_log.md` | Document architectural and implementation decisions |
+| `templates/pr_body.md` | Standard PR description format |
+| `templates/retro.md` | Post-session or post-PR retrospective |
+| `templates/eval_definition.md` | Define eval cases: inputs, expected outcomes, metrics |
+| `templates/eval_report.md` | Document eval results |
+| `templates/session_retro.md` | Per-session learning capture |

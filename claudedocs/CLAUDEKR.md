@@ -1,10 +1,10 @@
 <!-- policy-sync-warning:start -->
 warning_type: reference_only
 non_normative_reference_only: true
-last_sync_date: 2026-03-11
-status: STALE — CLAUDE.md updated 2026-03-30 (hooks, bootstrap, integration table). Re-sync needed.
+last_sync_date: 2026-03-31
+status: synced
 source_of_truth: ../CLAUDE.md
-source_commit_hash: a89b027917a2ee3b1f6a4456dfd471555a342be7
+source_commit_hash: 9388ab2f9f3746adc23b23dd0ae25733b7c5d821
 <!-- policy-sync-warning:end -->
 
 # CLAUDE.md (에이전트 규칙 - 계층형)
@@ -29,13 +29,17 @@ source_commit_hash: a89b027917a2ee3b1f6a4456dfd471555a342be7
 
 이 레포는 **oh-my-claudecode**가 전역으로 활성화되어 있다고 가정합니다. 다음 항목들은 자동으로 적용됩니다:
 
-| 항목 | 방법 | 이 파일의 역할 |
-|------|-----|----------------|
+| 항목 | 방법 | 훅 위치 |
+|------|------|---------|
 | 코드 변경 | executor 에이전트에 위임 | N/A (글로벌 규칙) |
-| 범위 적용 | harness `scope-gate` 훅 | 프로젝트별 규칙으로 보완 |
-| 편집 전 파일 읽기 | harness `context-gate` 훅 | N/A (자동 적용) |
-| 완료 검증 | Architect 에이전트 | 증거 요건으로 보완 |
-| 실패 시 배압 | harness `backpressure-gate` 훅 | N/A (자동 적용) |
+| 범위 적용 | `scope-gate` 훅 | `.claude/hooks/harness/` |
+| 편집 전 파일 읽기 | `context-gate` + `read-tracker` 훅 | `.claude/hooks/harness/` |
+| 완료 검증 | Architect 에이전트 | N/A (글로벌 규칙) |
+| 실패 시 배압 | `backpressure-gate` + `backpressure-tracker` 훅 | `.claude/hooks/harness/` |
+| 인수 기준 | `acceptance-gate` 훅 | `.claude/hooks/harness/` |
+| 신규 작업 감지 | `kickoff-detector` 훅 | `.claude/hooks/harness/` |
+
+모든 훅은 `.claude/settings.json`에 등록되어 있으며 이 레포에 포함되어 있습니다.
 
 **이 파일이 추가하는 것**: 프로젝트별 제약 사항, 증거 기준, 문서 요건.
 
