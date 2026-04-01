@@ -108,7 +108,7 @@ If you cannot comply with any MUST:
 
 - See [`rules/mcp_policy.md`](rules/mcp_policy.md) for full policies on all MCP servers.
 - **Context7**: MUST use for new external APIs/SDKs, dependencies, version-sensitive syntax.
-- **Serena**: SHOULD use for symbol navigation, refactoring, code understanding.
+- **Serena**: DEPRECATED — OMC LSP covers same functionality. MAY use if OMC LSP unavailable.
 - **Supabase**: MUST use migrations for DDL; MAY use direct SQL for queries.
 - **Web Search**: SHOULD use for current events, errors, latest docs.
 
