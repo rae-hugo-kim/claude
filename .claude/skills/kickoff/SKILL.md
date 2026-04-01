@@ -153,6 +153,7 @@ Write 도구로 `docs/harness/kickoff-summary.md`에 아래 Output Format 전체
 **필드 매핑:**
 - `version`: 1
 - `status`: draft
+- `task_id`: 자동 생성 (`YYYYMMDD-HHMMSS-<4자리 랜덤 hex>`, Bash `date +%Y%m%d-%H%M%S`-`openssl rand -hex 2`)
 - `goal`: Phase 0 JTBD의 Success 기준에서 추출
 - `constraints`: Phase 2 MUST NOT + Phase 1에서 발견한 기술 제약
 - `acceptance_criteria`: Phase 3의 모든 수락 기준
@@ -163,9 +164,37 @@ Write 도구로 `docs/harness/kickoff-summary.md`에 아래 Output Format 전체
 
 **생성 후 자체 검증:**
 - YAML 파싱 가능한가 (Read로 다시 읽어서 확인)
-- 필수 필드 9개 (version, status, goal, constraints, acceptance_criteria, out_of_scope, assumptions, risks, references) 모두 존재하는가
+- 필수 필드 10개 (version, status, task_id, goal, constraints, acceptance_criteria, out_of_scope, assumptions, risks, references) 모두 존재하는가
 - acceptance_criteria가 1개 이상인가
 - `docs/rules/seed_contract.md` 기준에 부합하는가
+
+#### Step 3.5: Plan Attack Gate (적대적 검증)
+
+seed.yaml 생성 후 자동 실행. 정책: [`rules/adversarial_review.md`](../../../rules/adversarial_review.md)
+
+```
+1. audit.jsonl에서 현재 task_id의 adversarial_plan_attack 이벤트 수를 세어 run_count 결정
+2. critic 에이전트 (opus) 호출:
+   - seed.yaml 전체를 입력으로 제공
+   - 구조적 공격 템플릿:
+     a) "이 goal이 달성 불가능한 이유 3가지"
+     b) "이 acceptance criteria가 불충분한 이유"
+     c) "이 scope에서 빠진 치명적 항목"
+   - 각 발견에 심각도 부여 (CRITICAL / HIGH / MEDIUM)
+   - CRITICAL 판정 기준: 3조건 동시 충족
+     (1) 요구사항 미충족/보안 취약점/데이터 손실 가능성
+     (2) 수정 없이 진행하면 후속 단계에서 반드시 실패
+     (3) 구체적 증거 제시 (seed.yaml 필드 인용)
+3. 결과를 docs/harness/plan-attack-report.md에 저장
+4. audit.jsonl에 append:
+   {"ts":"<ISO>","event":"adversarial_plan_attack","actor":"critic","meta":{"task_id":"<id>","run_count":<N>,"result":"<PASS|WARN|BLOCK>","findings":[...]}}
+5. 판정:
+   - run_count=1: WARN (결과를 사용자에게 표시, 진행 가능)
+   - run_count≥2: CRITICAL 발견 시 BLOCK → 사용자에게 보완 요구
+     - 사용자가 "그냥 진행해" → override 허용
+     - audit.jsonl에 adversarial_override 이벤트 기록
+   - CRITICAL 없으면: PASS
+```
 
 #### Step 4: Rubric 판정
 
@@ -287,6 +316,7 @@ Next: `/startdev` or manual planning.
 | `docs/harness/kickoff-done` | Flag that kickoff completed | Created at end |
 | `docs/harness/kickoff-summary.md` | 사람 중심 요약 | Created at end |
 | `docs/harness/seed.yaml` | 하네스 중심 구조화 명세 (1급 입력) | Created at end |
+| `docs/harness/plan-attack-report.md` | 적대적 계획 검증 결과 | Created at Step 3.5 |
 | `docs/harness/rubric-report.md` | 명확도 4차원 판정 보고서 | Created at end |
 | `docs/harness/current-scope.md` | 훅 호환용 scope 정의 (파생물) | Created at end |
 | `docs/harness/audit.jsonl` | Append-only 감사 로그 | Appended throughout |

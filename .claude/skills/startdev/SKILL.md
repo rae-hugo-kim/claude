@@ -45,8 +45,9 @@ seed.yaml을 확인하고 유효성을 검증한다.
 1. Read docs/harness/seed.yaml
 2. 존재하면:
    - YAML 파싱 성공 확인
-   - 필수 필드 9개 존재 확인 (version, status, goal, constraints,
+   - 필수 필드 10개 존재 확인 (version, status, task_id, goal, constraints,
      acceptance_criteria, out_of_scope, assumptions, risks, references)
+   - task_id 형식 확인 (YYYYMMDD-HHMMSS-XXXX)
    - acceptance_criteria >= 1개 확인
    - status가 draft 또는 approved 확인
    - 실패 시: "seed.yaml이 유효하지 않습니다. /kickoff를 먼저 실행하세요." 출력 후 중단

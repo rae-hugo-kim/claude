@@ -135,6 +135,7 @@ If you cannot comply with any MUST:
 - Agent security: [`rules/agent_security.md`](rules/agent_security.md)
 - Hook recipes: [`rules/hook_recipes.md`](rules/hook_recipes.md)
 - Session persistence: [`rules/session_persistence.md`](rules/session_persistence.md)
+- Adversarial review: [`rules/adversarial_review.md`](rules/adversarial_review.md)
 
 ## Checklists (Use as needed)
 

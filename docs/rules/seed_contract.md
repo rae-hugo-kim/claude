@@ -23,6 +23,7 @@
 
 - `version`
 - `status`
+- `task_id`
 - `goal`
 - `constraints`
 - `acceptance_criteria`
@@ -37,6 +38,13 @@
 - 정수
 - 초기값은 `1`
 - 구조가 바뀌면 증가
+
+### `task_id`
+- 문자열
+- kickoff 시 자동 생성
+- 형식: `YYYYMMDD-HHMMSS-<4자리 랜덤 hex>`
+- 동일 태스크의 재실행 구분에 사용 (audit.jsonl과 연결)
+- 수동 편집하지 않는다
 
 ### `status`
 - 허용값: `draft`, `approved`, `superseded`
@@ -95,7 +103,8 @@ references:
 아래 조건을 만족하지 않으면 유효하지 않다.
 
 - YAML 파싱 가능
-- 필수 필드 모두 존재
+- 필수 필드 10개 모두 존재 (version, status, task_id, goal, constraints, acceptance_criteria, out_of_scope, assumptions, risks, references)
+- `task_id` 형식 일치 (`YYYYMMDD-HHMMSS-XXXX`)
 - `acceptance_criteria` 길이 >= 1
 - `out_of_scope`, `assumptions`, `risks`, `references`는 배열
 - `status`가 허용값 중 하나
@@ -119,6 +128,7 @@ references:
 ```yaml
 version: 1
 status: draft
+task_id: "20260401-143000-a1b2"
 
 goal: >
   기존 API에 토큰 기반 인증을 추가한다.
