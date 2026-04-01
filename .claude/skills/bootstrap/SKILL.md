@@ -74,6 +74,9 @@ RTK는 선택적 — 설치 실패해도 중단하지 않고 계속 진행.
 # context7 — 라이브러리/프레임워크 공식 문서 조회
 claude mcp add --scope user context7 -- npx -y @upstash/context7-mcp@latest
 
+# serena — 시맨틱 코드 탐색/리팩토링 (--context claude-code로 OMC LSP 중복 제거)
+claude mcp add --scope user serena -- uvx --from "git+https://github.com/oraios/serena" serena start-mcp-server --context claude-code
+
 # exa — AI 웹 검색
 claude mcp add --transport http --scope user exa https://mcp.exa.ai/mcp
 
@@ -127,6 +130,7 @@ claude mcp add --transport sse --scope user react-design-systems <url>
 | Server | Status |
 |--------|--------|
 | context7 | ✓ registered |
+| serena | ✓ registered |
 | exa | ✓ registered |
 | browser-tools-mcp | ✓ registered |
 | supabase | ✓ registered (또는 — skipped) |

@@ -7,7 +7,7 @@ This document defines when and how to use MCP (Model Context Protocol) servers.
 When multiple tools can accomplish the same task:
 
 1. **MCP tools** (specialized, maintained) over generic alternatives
-2. **OMC LSP tools** over text-based file operations
+2. **Symbolic tools** (Serena with `--context claude-code`) over text-based file operations
 3. **Cached/indexed sources** (Context7) over live web search
 
 ---
@@ -33,18 +33,28 @@ When multiple tools can accomplish the same task:
 
 ---
 
-## Serena (Symbolic Code Analysis) — DEPRECATED
+## Serena (Symbolic Code Analysis)
 
-**Status**: Removed from default setup. OMC LSP tools (`lsp_goto_definition`, `lsp_find_references`, `lsp_rename`, `lsp_document_symbols`, `lsp_diagnostics_directory`) cover the same functionality with less overhead.
+**Purpose**: LSP-based code navigation, refactoring, and symbolic editing.
 
-### MAY use when:
-- OMC LSP tools are unavailable (no oh-my-claudecode plugin)
-- `replace_symbol_body` / `insert_before_symbol` semantics are specifically needed
+### SHOULD use when:
+- Finding symbol definitions and references (`find_symbol`, `find_referencing_symbols`)
+- Understanding call hierarchy and dependencies
+- Refactoring (rename, extract, move)
+- Getting file/symbol overview (`get_symbols_overview`)
+- `replace_symbol_body` / `insert_before_symbol` — 심볼 단위 편집이 필요할 때
 
-### Why removed:
-- Near-complete overlap with OMC LSP tools
-- Extra MCP server = startup token cost, 429 risk, maintenance burden
-- No unique capability that justifies the overhead in OMC environments
+### MAY skip when:
+- Simple single-line edits where exact location is known
+- Non-code files (markdown, config, etc.)
+- OMC LSP tools로 충분한 단순 탐색 (goto definition, find references)
+
+### Best Practices:
+- **MUST** run with `--context claude-code` flag to disable tools that overlap with OMC LSP (reduces token cost and 429 risk)
+- Use `get_symbols_overview` before diving into a new file
+- Prefer `find_symbol` with `include_body=True` over reading entire files
+- Use `replace_symbol_body` for function/method replacements
+- Use `replace_content` with regex for targeted line edits
 
 ---
 
