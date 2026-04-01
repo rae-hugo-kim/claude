@@ -4,7 +4,7 @@ non_normative_reference_only: true
 last_sync_date: 2026-03-31
 status: synced
 source_of_truth: ../CLAUDE.md
-source_commit_hash: 9388ab2f9f3746adc23b23dd0ae25733b7c5d821
+source_commit_hash: aafe3e1a5c6768da2aa652ef93330b3374808143
 <!-- policy-sync-warning:end -->
 
 # CLAUDE.md (에이전트 규칙 - 계층형)
