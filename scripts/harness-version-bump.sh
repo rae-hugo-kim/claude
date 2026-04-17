@@ -61,7 +61,7 @@ sed -i \
 git -C "$REPO_ROOT" add "$META_FILE"
 git -C "$REPO_ROOT" commit --amend --no-edit
 
-# --- 7. Create git tag ---
-git -C "$REPO_ROOT" tag "$tag_name"
+# --- 7. Create annotated git tag (so `git push --follow-tags` picks it up) ---
+git -C "$REPO_ROOT" tag -a "$tag_name" -m "harness ${new_version}"
 
 echo "harness version bumped: ${current_version} -> ${new_version} (tag: ${tag_name})"
