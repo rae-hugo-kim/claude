@@ -1,76 +1,91 @@
 ---
 name: harness-check
-allowed-tools: Bash(node:*), Bash(cat:*), Read
-argument-hint: [--force]
-description: Manually check if the local harness is behind the source remote. Use when the user says "harness-check", "harness version", "하네스 버전", or wants to force a version/SHA drift check bypassing the 24h cache.
+allowed-tools: Bash(node:*), Bash(bash:*), Bash(cat:*), Bash(git:*), Read
+argument-hint: [--dry-run]
+description: Check harness version drift and auto-sync from the source remote. Use when the user says "harness-check", "harness version", "하네스 버전", or wants to retrofit/update harness files from the source repo.
 ---
 
-# Harness Check - Manual Version Drift Check
+# Harness Check - Version Drift + Auto-Sync
 
 ## Goal
 
-Run the harness version check on demand, bypassing the 24h cache, and report drift status explicitly (even when up to date).
+One command that both **reports drift** and **resolves it** by overwriting local harness files from the source remote. Remote wins unconditionally.
 
 ## Inputs
 
-- `$ARGUMENTS`: pass `--force` (default) to refresh now. Pass nothing for same behavior.
+- `$ARGUMENTS`:
+  - (empty) — check + sync (default)
+  - `--dry-run` — show what would be overwritten, no changes
 
 ## Constraints
 
 | Rule | Rationale |
 |------|-----------|
-| Source repo self-skip | If `harness-meta.json` has no `source_remote`, this IS the source; do not run the check |
-| Network optional | If `git ls-remote` fails, report the failure but do not treat as drift |
-| No auto-update | This skill reports only — syncing is a separate re-bootstrap step |
+| Source repo self-skip | If `origin` remote matches `rae-hugo-kim/claude`, this IS the source — nothing to do |
+| Remote wins | Local tuning is explicitly out of scope; overwrite without merge |
+| Whitelist only | Only harness asset paths are overwritten — user code (`docs/`, `src/`, etc.) is never touched |
+| Preserve `bootstrapped_at` | Keep the original first-registration timestamp |
 
 ## Process
 
-### 1. Verify harness-meta.json exists
+### 1. Detect mode
 
 ```bash
-cat .claude/hooks/harness/harness-meta.json
+cat .claude/hooks/harness/harness-meta.json 2>/dev/null || echo "missing"
+git remote get-url origin
 ```
 
-If missing → tell the user the harness is not installed, point to `/bootstrap`.
+| Mode | Condition |
+|------|-----------|
+| **source repo** | `origin` URL matches `rae-hugo-kim/claude` |
+| **unregistered** | meta has no `source_remote` field (and origin doesn't match source) |
+| **registered** | meta has `source_remote` field |
 
-### 2. Detect source vs consumer
-
-If `source_remote` field is absent → this repo is the source. Report:
-> Source harness repo detected (no `source_remote` in meta). Nothing to check — this repo publishes the harness.
-
-### 3. Run the check with --force
+### 2. Run the sync script
 
 ```bash
-node .claude/hooks/harness/harness-version-check.mjs --force
+bash scripts/harness-sync.sh [--dry-run]
 ```
 
 The script:
-- Refetches `git ls-remote --tags <source_remote> 'refs/tags/harness/*'`
-- Updates the 24h cache at `.omc/state/harness-version-check.json`
-- Compares version rank primary, commit SHA fallback
-- Emits a drift line only on mismatch
+- Self-skips in the source repo
+- Falls back to `git@github.com:rae-hugo-kim/claude.git` if no `source_remote` (unregistered case)
+- Fetches the latest `harness/*` tag from remote
+- Shallow-clones that tag into a temp dir
+- Overwrites whitelist paths (`rules/`, `checklists/`, `templates/`, `CLAUDE.md`, `.claude/hooks/harness/`, `.claude/settings.json`, `.githooks/post-commit`, `scripts/harness-*.sh`, harness skill dirs)
+- Rewrites `harness-meta.json` with new version/SHA + preserved `bootstrapped_at`
+- Clears the SessionStart cache
 
-### 4. Report
+### 3. Report
 
-| State | Report |
-|-------|--------|
-| Drift detected | Echo the hook output + suggest re-running `/bootstrap` to sync |
-| In sync (no output) | Explicitly say "Harness is up to date: local `<version>` matches remote" |
-| Network failure | "Could not reach `<source_remote>`. Check network or remote URL in harness-meta.json" |
+| Outcome | Report |
+|---------|--------|
+| Source repo | "Source harness repo — no sync needed" |
+| Unregistered → synced | "Retrofitted to harness/<version> from default source" |
+| Registered, up to date | "Harness was already at latest (harness/<version>) — files re-synced anyway" |
+| Registered, drift → synced | "Synced local <old> → remote <new>" |
+| `--dry-run` | List of paths that would be overwritten |
+| Network failure | "Could not reach remote. Check `source_remote` URL and network" |
 
 ## Verification
 
 ```bash
-cat .omc/state/harness-version-check.json
+cat .claude/hooks/harness/harness-meta.json
+git status --short
 ```
 
-Confirm `checkedAt` is within the last minute.
+Confirm `version`, `commit_sha`, `updated` reflect the remote's latest; review changes before committing.
 
 ## Error Handling
 
 | Condition | Action |
 |-----------|--------|
-| No harness-meta.json | Instruct user to run `/bootstrap` |
-| No `source_remote` | Explain this is the source repo |
-| `git ls-remote` timeout | Report network error, do not claim drift |
-| Cache write failure | Report but proceed — non-fatal |
+| `git clone` fails | Report network/auth error; do not touch local files |
+| No `harness/*` tags on remote | Report error; do not touch local files |
+| Source repo detected | Self-skip, exit 0 |
+| Dry-run flag | Show paths, exit before any write |
+
+## Notes
+
+- This skill does **not** commit the synced files. After sync, review with `git status` and commit when ready.
+- For scheduled drift detection (no sync), the SessionStart hook `harness-version-check.mjs` continues to report drift at session start without acting.
