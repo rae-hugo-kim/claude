@@ -6,3 +6,6 @@
 !.claude/settings.json
 docs/sum/
 docs/brainstorming/
+
+# OMC state and sessions (transient)
+.omc/

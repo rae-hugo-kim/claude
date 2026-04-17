@@ -99,6 +99,16 @@ kickoff → startdev 흐름에서 자동으로 작동하는 장치들:
 - **audit log** — 이벤트 추적 (append-only JSONL)
 - **glossary** — 프로젝트 용어 정의 (`docs/glossary.yaml`)
 
+## 하네스 버전 관리 (이 저장소 전용)
+
+이 저장소의 하네스 파일(`rules/`, `checklists/`, `.claude/`, `CLAUDE.md`)이 변경되면 `harness-meta.json`의 버전이 자동으로 올라가고 `harness/YYYY.N` 태그가 생성됩니다. 이 훅을 쓰려면 클론 직후 한 번만 실행하세요:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+이후 `git commit`이 자동으로 `scripts/harness-version-bump.sh`를 호출합니다. 하네스 외 파일만 바꾼 커밋은 건드리지 않습니다.
+
 ## 규칙 커스터마이징
 
 `rules/` 아래 각 파일이 독립된 규칙입니다.
