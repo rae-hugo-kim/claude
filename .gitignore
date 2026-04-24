@@ -3,9 +3,14 @@
 .claude/*
 !.claude/skills/
 !.claude/hooks/
+!.claude/agents/
 !.claude/settings.json
 docs/sum/
 docs/brainstorming/
+docs/reviews/
+docs/harness/*-skip
+docs/harness/*-done
 
 # OMC state and sessions (transient)
 .omc/
+bun-linux-x64/
