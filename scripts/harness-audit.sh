@@ -84,15 +84,28 @@ SCORE_cost_efficiency=0
 
 award() {
   local cat="$1" pts="$2" label="$3"
-  local var="SCORE_$cat" arr="DETAIL_$cat"
-  printf -v "$var" '%d' "$(( ${!var} + pts ))"
-  eval "$arr+=(\"+$pts $label\")"
+  local -n score_ref="SCORE_$cat"
+  local -n detail_ref="DETAIL_$cat"
+  score_ref=$(( score_ref + pts ))
+  detail_ref+=("+$pts $label")
 }
 
 skip() {
   local cat="$1" label="$2"
-  local arr="DETAIL_$cat"
-  eval "$arr+=(\"+0 $label (missing)\")"
+  local -n detail_ref="DETAIL_$cat"
+  detail_ref+=("+0 $label (missing)")
+}
+
+emit_category() {
+  local cat="$1"
+  local -n score_ref="SCORE_$cat"
+  local -n detail_ref="DETAIL_$cat"
+  echo "## ${cat//_/ } : ${score_ref}/10"
+  local line
+  for line in "${detail_ref[@]}"; do
+    echo "  $line"
+  done
+  echo ""
 }
 
 # --- 1. Tool Coverage ---
@@ -358,11 +371,7 @@ else
   echo "Root: $ROOT"
   echo ""
   for cat in "${CATS[@]}"; do
-    var="SCORE_$cat"
-    arr="DETAIL_$cat"
-    echo "## ${cat//_/ } : ${!var}/10"
-    eval "for line in \"\${${arr}[@]}\"; do echo \"  \$line\"; done"
-    echo ""
+    emit_category "$cat"
   done
   echo "========================="
   echo "TOTAL: $TOTAL/70"
