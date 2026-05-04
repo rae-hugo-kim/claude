@@ -58,14 +58,18 @@ Creates a new GitHub repository based on this template.
 ├── templates/             Reusable templates
 ├── .claude/
 │   ├── skills/            Skill definitions
-│   │   ├── bootstrap/     Environment setup
-│   │   ├── init/          Project creation
-│   │   ├── kickoff/       Scope interview
-│   │   ├── startdev/      TDD implementation
-│   │   ├── compr/         PR creation
-│   │   ├── compush/       Commit + push
-│   │   ├── sum/           Session summary
-│   │   └── tidy/          Refactoring
+│   │   ├── bootstrap/             Environment setup
+│   │   ├── init/                  Project creation
+│   │   ├── kickoff/               Scope interview
+│   │   ├── startdev/              TDD implementation
+│   │   ├── compr/                 PR creation
+│   │   ├── compush/               Commit + push
+│   │   ├── sum/                   Session summary
+│   │   ├── tidy/                  Refactoring
+│   │   ├── code-review/           Code review (3-pass)
+│   │   ├── receiving-code-review/ Review intake guide
+│   │   ├── harness-check/         Harness drift check + sync + audit
+│   │   └── grepai-search/         Semantic code search
 │   ├── hooks/harness/     Harness hooks
 │   └── settings.json      Hook registration
 ├── docs/harness/          Harness runtime files
@@ -84,6 +88,10 @@ Creates a new GitHub repository based on this template.
 | `/compr` | Branch → commit → push → PR |
 | `/compush` | Commit → push (no PR) |
 | `/tidy` | Refactor with Kent Beck's Tidy First |
+| `/code-review` | 3-pass adversarial review of pending changes |
+| `/receiving-code-review` | Verify and apply review feedback |
+| `/harness-check` | Check harness drift and auto-sync from the source remote (`--audit` for 7-category quality score) |
+| `/grepai-search` | Semantic code search for cold-start orientation |
 
 ## Harness
 
@@ -93,11 +101,42 @@ Automated guardrails that activate during the kickoff → startdev flow:
 - **scope-gate hook** — Blocks edits to out-of-scope paths
 - **context-gate + read-tracker hooks** — Prevents editing unread files
 - **acceptance-gate hook** — Blocks commits with unmet acceptance criteria
-- **backpressure hooks** — Suppresses commits without verification (gate + tracker)
+- **backpressure hooks** — Suppresses commits without verification (gate + tracker + invalidator)
 - **kickoff-detector hook** — Reminds to kickoff when new work is detected
+- **mcp-gate hook** — Enforces MCP server usage policy
+- **destructive-guard hook** — Blocks dangerous commands (rm -rf, force push, etc.)
+- **risk-assess hook** — Auto-assesses change impact
+- **review-gate hook** — Forces review when risk threshold is crossed
+- **harness-version-check hook** — Notifies of remote harness drift on SessionStart
 - **rubric** — 4-dimension clarity gate (HIGH/MED/LOW)
 - **audit log** — Event tracking (append-only JSONL)
 - **glossary** — Project terminology alignment (`docs/glossary.yaml`)
+
+## Harness Version Management
+
+This repository serves as the **harness source** that other projects sync from.
+
+### This repo (source) — automatic version bump
+
+When `rules/`, `checklists/`, `.claude/`, `CLAUDE.md`, etc. change, `harness-meta.json` is bumped and a `harness/YYYY.N` tag is created. Activate the hook once after cloning:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+After that, `git commit` automatically calls `scripts/harness-version-bump.sh`. Commits that touch only non-harness files are left alone.
+
+### Other projects (consumer) — `/harness-check`
+
+Projects created with `/init` or `/bootstrap` get a SessionStart hook that checks the remote harness tag every 24 hours and reports drift. To explicitly sync:
+
+```bash
+/harness-check              # overwrite-sync to the latest harness/* tag
+/harness-check --dry-run    # preview the paths that would be overwritten
+/harness-check --audit      # after sync, print 7-category (0–70) quality score
+```
+
+`--audit` invokes `scripts/harness-audit.sh` and scores tool_coverage, context_efficiency, quality_gates, memory_persistence, eval_coverage, security_guardrails, cost_efficiency.
 
 ## Customizing Rules
 
