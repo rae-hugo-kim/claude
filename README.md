@@ -10,7 +10,7 @@ Claude Code가 일관되고 안전하게 동작하도록 만드는 정책 프레
 ## 필요한 것
 
 - [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code)
-- [oh-my-claudecode](https://github.com/anthropics/oh-my-claudecode) (OMC)
+- [oh-my-claudecode](https://github.com/yeachan-heo/oh-my-claudecode) (OMC)
 
 OMC가 없으면 에이전트 위임, 훅 자동화 등 핵심 기능이 빠집니다.
 

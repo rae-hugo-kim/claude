@@ -10,7 +10,7 @@ Delete what you don't need. Adapt the rest to your project.
 ## Prerequisites
 
 - [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code)
-- [oh-my-claudecode](https://github.com/anthropics/oh-my-claudecode) (OMC)
+- [oh-my-claudecode](https://github.com/yeachan-heo/oh-my-claudecode) (OMC)
 
 Without OMC, core features like agent delegation and hook automation won't work.
 
