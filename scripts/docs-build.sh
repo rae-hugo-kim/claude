@@ -23,6 +23,7 @@ export PATH="$HOME/.cargo/bin:$PATH"
 missing=()
 command -v mdbook >/dev/null 2>&1         || missing+=("mdbook (cargo install mdbook)")
 command -v mdbook-mermaid >/dev/null 2>&1 || missing+=("mdbook-mermaid (cargo install mdbook-mermaid)")
+command -v python3 >/dev/null 2>&1        || missing+=("python3 (system package — used by SUMMARY.md generator)")
 
 if [ "${NO_MERMAID_VALIDATE:-0}" != "1" ] && [ "${1:-}" != "--no-validate" ]; then
   command -v mmdc >/dev/null 2>&1         || missing+=("mmdc (npm install -g @mermaid-js/mermaid-cli)")
@@ -72,6 +73,13 @@ def tracked_md(rel_dir: str) -> list[pathlib.Path]:
     )
     return sorted(pathlib.Path(p) for p in res.stdout.splitlines() if p.strip())
 
+def untracked_md(rel_dir: str) -> list[pathlib.Path]:
+    res = subprocess.run(
+        ["git", "ls-files", "--others", "--exclude-standard", f"docs/{rel_dir}/*.md"],
+        cwd=root, capture_output=True, text=True, check=True,
+    )
+    return sorted(pathlib.Path(p) for p in res.stdout.splitlines() if p.strip())
+
 def link_title(path: pathlib.Path) -> str:
     try:
         text = (root / path).read_text(encoding="utf-8", errors="ignore")
@@ -111,6 +119,21 @@ lines.append(
 
 (root / "docs" / "SUMMARY.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
 print(f"[docs-build] Regenerated docs/SUMMARY.md ({sum(len(tracked_md(e.split(':',1)[0])) for e in sections)} entries across {len(sections)} sections).")
+
+# Warn on untracked .md inside whitelisted sections so users notice silent skips.
+# --exclude-standard respects .gitignore (sum/, brainstorming/, reviews/ stay quiet).
+untracked = []
+for entry in sections:
+    rel_dir = entry.split(":", 1)[0]
+    untracked.extend(untracked_md(rel_dir))
+if untracked:
+    print(
+        f"[docs-build] WARN: {len(untracked)} untracked .md in whitelisted sections — "
+        "run 'git add' for them to appear in the sidebar:",
+        file=sys.stderr,
+    )
+    for p in untracked:
+        print(f"  - {p.as_posix()}", file=sys.stderr)
 PY
 
 # 2. mdbook build (preprocessor renders mermaid blocks client-side)
