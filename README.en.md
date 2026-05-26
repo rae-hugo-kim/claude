@@ -22,7 +22,7 @@ Without OMC, core features like agent delegation and hook automation won't work.
 /bootstrap
 ```
 
-Installs OMC, RTK, and general-purpose MCP servers (context7, serena, exa, browser-tools).
+Installs OMC, RTK, general-purpose MCP servers (context7, serena, exa, browser-tools), and docs viewer tooling (mdBook + mdbook-mermaid + mmdc).
 Optionally add supabase, react-design-systems, and more.
 
 ### 2. Create a Project
@@ -52,13 +52,14 @@ Creates a new GitHub repository based on this template.
 │   ├── anti_hallucination Evidence-based behavior
 │   ├── change_control     Minimal change principle
 │   ├── tdd_policy         RED → GREEN → TIDY
+│   ├── doc_standards      Markdown SST + Mermaid standards
 │   ├── ...                Each file has a one-line description
 │   └── INDEX.md           Full listing
 ├── checklists/            Task checklists
 ├── templates/             Reusable templates
 ├── .claude/
 │   ├── skills/            Skill definitions
-│   │   ├── bootstrap/             Environment setup
+│   │   ├── bootstrap/             Environment setup (incl. docs tooling)
 │   │   ├── init/                  Project creation
 │   │   ├── kickoff/               Scope interview
 │   │   ├── startdev/              TDD implementation
@@ -69,10 +70,17 @@ Creates a new GitHub repository based on this template.
 │   │   ├── code-review/           Code review (3-pass)
 │   │   ├── receiving-code-review/ Review intake guide
 │   │   ├── harness-check/         Harness drift check + sync + audit
+│   │   ├── design-mockup/         Interactive HTML mockup generator
 │   │   └── grepai-search/         Semantic code search
 │   ├── hooks/harness/     Harness hooks
 │   └── settings.json      Hook registration
-├── docs/harness/          Harness runtime files
+├── docs/
+│   ├── SUMMARY.md         mdBook viewer index
+│   ├── README.md          Viewer landing
+│   └── harness/           Harness runtime files
+├── book.toml              mdBook config (mermaid preprocessor)
+├── scripts/docs-build.sh  Docs build + Mermaid syntax validation
+├── artifacts/             One-off human-facing HTML (gitignored)
 └── claudedocs/            Reference docs
 ```
 
@@ -91,6 +99,7 @@ Creates a new GitHub repository based on this template.
 | `/code-review` | 3-pass adversarial review of pending changes |
 | `/receiving-code-review` | Verify and apply review feedback |
 | `/harness-check` | Check harness drift and auto-sync from the source remote (`--audit` for 7-category quality score) |
+| `/design-mockup` | Generate a single-file HTML mockup with sliders/knobs for design parameter tuning (`artifacts/design/`) |
 | `/grepai-search` | Semantic code search for cold-start orientation |
 
 ## Harness
@@ -138,6 +147,24 @@ Projects created with `/init` or `/bootstrap` get a SessionStart hook that check
 
 `--audit` invokes `scripts/harness-audit.sh` and scores tool_coverage, context_efficiency, quality_gates, memory_persistence, eval_coverage, security_guardrails, cost_efficiency.
 
+## Docs Viewer (mdBook)
+
+Local viewer that renders the Markdown SST as a human-friendly HTML site. Each project serves its own `docs/` independently.
+
+```bash
+bash scripts/docs-build.sh   # build to book/ + validate Mermaid syntax (mmdc)
+mdbook serve                 # http://127.0.0.1:3000 with hot reload
+```
+
+- **Config**: `book.toml` points to `src = "docs"`. mdbook-mermaid preprocessor is registered.
+- **Index**: documents exposed in the viewer are registered in `docs/SUMMARY.md`.
+- **Validation**: `docs-build.sh` extracts every ```` ```mermaid ```` block from `*.md` and validates with `mmdc` — broken diagrams fail the build.
+- **Authoring standards**: [`rules/doc_standards.md`](rules/doc_standards.md) — Mermaid default, 200+ line summary, GFM tables, `artifacts/` isolation, uppercase `SKILL.md`.
+- **artifacts/**: one-off human-facing HTML (mockups, explainers, design previews) lives here. `artifacts/**` is gitignored, but `artifacts/**/README.md` is excepted and tracked.
+- **Port conflicts**: to serve multiple projects simultaneously, use `mdbook serve --port 3001`.
+
+The toolchain (mdbook, mdbook-mermaid, mmdc) is installed automatically by `/bootstrap` Phase 3.
+
 ## Customizing Rules
 
 Each file under `rules/` is an independent rule.
@@ -149,7 +176,7 @@ Delete the ones you don't need — the rest keeps working.
 | **Quality** | coding_standards, verification_tests_and_evals, change_control, tdd_policy, code_review_policy, quality_gates |
 | **Tools** | mcp_policy, context7_policy, hook_recipes |
 | **Process** | assetization, commit_and_pr, harness_integration_contract |
-| **Docs** | documentation_policy |
+| **Docs** | documentation_policy, doc_standards |
 | **Operations** | context_management, session_persistence, cost_awareness, learning_policy |
 
 ## Core Principles

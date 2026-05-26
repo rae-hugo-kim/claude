@@ -22,7 +22,7 @@ OMC가 없으면 에이전트 위임, 훅 자동화 등 핵심 기능이 빠집�
 /bootstrap
 ```
 
-OMC, RTK, 범용 MCP 서버(context7, serena, exa, browser-tools)를 설치합니다.
+OMC, RTK, 범용 MCP 서버(context7, serena, exa, browser-tools), docs 뷰어 도구(mdBook + mdbook-mermaid + mmdc)를 설치합니다.
 선택적으로 supabase, react-design-systems 등을 추가할 수 있습니다.
 
 ### 2. 프로젝트 생성
@@ -52,13 +52,14 @@ OMC, RTK, 범용 MCP 서버(context7, serena, exa, browser-tools)를 설치합�
 │   ├── anti_hallucination 증거 기반 동작
 │   ├── change_control     최소 변경 원칙
 │   ├── tdd_policy         RED → GREEN → TIDY
+│   ├── doc_standards      마크다운 SST + Mermaid 표준
 │   ├── ...                각 파일에 한 줄 설명 포함
 │   └── INDEX.md           전체 목록
 ├── checklists/            작업별 체크리스트
 ├── templates/             재사용 템플릿
 ├── .claude/
 │   ├── skills/            스킬 정의
-│   │   ├── bootstrap/         환경 구축
+│   │   ├── bootstrap/         환경 구축 (docs 도구 포함)
 │   │   ├── init/              프로젝트 생성
 │   │   ├── kickoff/           스코프 인터뷰
 │   │   ├── startdev/          TDD 구현
@@ -69,10 +70,17 @@ OMC, RTK, 범용 MCP 서버(context7, serena, exa, browser-tools)를 설치합�
 │   │   ├── code-review/       코드 리뷰 (3-pass)
 │   │   ├── receiving-code-review/  리뷰 수용 가이드
 │   │   ├── harness-check/     하네스 드리프트 체크 + sync + audit
+│   │   ├── design-mockup/     인터랙티브 HTML mockup 생성
 │   │   └── grepai-search/     시맨틱 코드 검색
 │   ├── hooks/harness/     하네스 훅
 │   └── settings.json      훅 등록 설정
-├── docs/harness/          하네스 런타임 파일
+├── docs/
+│   ├── SUMMARY.md         mdBook 뷰어 인덱스
+│   ├── README.md          뷰어 랜딩
+│   └── harness/           하네스 런타임 파일
+├── book.toml              mdBook 설정 (mermaid preprocessor)
+├── scripts/docs-build.sh  docs 빌드 + Mermaid syntax 검증
+├── artifacts/             1회성 사람용 HTML 격리 (gitignored)
 └── claudedocs/            참조 문서
 ```
 
@@ -91,6 +99,7 @@ OMC, RTK, 범용 MCP 서버(context7, serena, exa, browser-tools)를 설치합�
 | `/code-review` | 변경 사항 3-pass 적대적 리뷰 |
 | `/receiving-code-review` | 받은 리뷰 의견 검증·반영 |
 | `/harness-check` | 하네스 버전 드리프트 체크 + 원격에서 자동 sync (`--audit`로 7-카테고리 품질 점수) |
+| `/design-mockup` | 슬라이더/노브로 파라미터 튜닝 가능한 단일 HTML mockup 생성 (`artifacts/design/`) |
 | `/grepai-search` | 의미 기반 코드 검색 (콜드스타트 탐색) |
 
 ## 하네스
@@ -138,6 +147,24 @@ git config core.hooksPath .githooks
 
 `--audit`은 `scripts/harness-audit.sh`를 호출해 tool_coverage, context_efficiency, quality_gates, memory_persistence, eval_coverage, security_guardrails, cost_efficiency를 점수화합니다.
 
+## Docs 뷰어 (mdBook)
+
+마크다운(SST)을 사람 친화적 HTML로 렌더링하는 로컬 뷰어. 각 프로젝트가 자기 `docs/`를 독립적으로 serve합니다.
+
+```bash
+bash scripts/docs-build.sh   # book/에 정적 사이트 빌드 + Mermaid syntax 검증 (mmdc)
+mdbook serve                 # http://127.0.0.1:3000 hot reload
+```
+
+- **설정**: `book.toml`이 `src = "docs"`를 가리킴. mdbook-mermaid preprocessor 등록.
+- **인덱스**: 뷰어에 노출할 문서는 `docs/SUMMARY.md`에 등록.
+- **검증**: `docs-build.sh`가 모든 `*.md`에서 ```` ```mermaid ```` 블록을 추출해 `mmdc`로 syntax 검증 — 깨진 다이어그램은 빌드 실패.
+- **작성 표준**: [`rules/doc_standards.md`](rules/doc_standards.md) — Mermaid 기본, 200줄+ 요약, GFM 표, `artifacts/` 격리, SKILL.md 대문자.
+- **artifacts/**: 1회성 사람용 HTML(mockup·explainer·design preview)은 여기로. `artifacts/**`는 gitignored지만 `artifacts/**/README.md`는 예외로 추적.
+- **포트 충돌**: 여러 프로젝트를 동시에 serve하려면 `mdbook serve --port 3001`.
+
+도구(mdbook, mdbook-mermaid, mmdc)는 `/bootstrap` Phase 3에서 자동 설치됩니다.
+
 ## 규칙 커스터마이징
 
 `rules/` 아래 각 파일이 독립된 규칙입니다.
@@ -149,7 +176,7 @@ git config core.hooksPath .githooks
 | **품질** | coding_standards, verification_tests_and_evals, change_control, tdd_policy, code_review_policy, quality_gates |
 | **도구** | mcp_policy, context7_policy, hook_recipes |
 | **프로세스** | assetization, commit_and_pr, harness_integration_contract |
-| **문서** | documentation_policy |
+| **문서** | documentation_policy, doc_standards |
 | **운영** | context_management, session_persistence, cost_awareness, learning_policy |
 
 ## 핵심 원칙
