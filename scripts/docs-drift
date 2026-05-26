@@ -1,0 +1,684 @@
+#!/usr/bin/env node
+
+const fs = require('node:fs');
+const path = require('node:path');
+const process = require('node:process');
+const { execFileSync } = require('node:child_process');
+
+const scriptDir = __dirname;
+const repoRoot = path.resolve(scriptDir, '..');
+
+const FAIL = 'FAIL';
+const WARNING = 'WARNING';
+
+const issues = [];
+const headingCache = new Map();
+
+main();
+
+function main() {
+  const markdownFiles = collectMarkdownFiles(repoRoot);
+  const markdownSet = new Set(markdownFiles.map((filePath) => toRepoPath(filePath)));
+
+  for (const filePath of markdownFiles) {
+    checkMarkdownLinks(filePath, markdownSet);
+  }
+
+  checkHookRegistration();
+  checkReferenceDocs();
+  checkReadmeAndIndexRefs();
+
+  printReport();
+  process.exit(hasFailures() ? 1 : 0);
+}
+
+function collectMarkdownFiles(rootDir) {
+  const files = [];
+  walk(rootDir, files);
+  return files.filter((filePath) => shouldInspectMarkdown(toRepoPath(filePath)));
+}
+
+function walk(dirPath, files) {
+  const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+  for (const entry of entries) {
+    const fullPath = path.join(dirPath, entry.name);
+    const relativePath = toRepoPath(fullPath);
+
+    if (entry.isDirectory()) {
+      if (shouldSkipDirectory(relativePath)) {
+        continue;
+      }
+      walk(fullPath, files);
+      continue;
+    }
+
+    if (entry.isFile() && entry.name.endsWith('.md')) {
+      files.push(fullPath);
+    }
+  }
+}
+
+function shouldSkipDirectory(relativePath) {
+  return (
+    relativePath === '.git' ||
+    relativePath === '.omc' ||
+    relativePath === 'docs/brainstorming' ||
+    relativePath === 'docs/sum'
+  );
+}
+
+function shouldInspectMarkdown(relativePath) {
+  if (path.basename(relativePath) === 'SKILL.md' && relativePath.startsWith('.claude/skills/')) {
+    return true;
+  }
+
+  if (relativePath.endsWith('.md') && !relativePath.includes('/')) {
+    return true;
+  }
+
+  const allowedPrefixes = [
+    'rules/',
+    'checklists/',
+    'templates/',
+    'docs/rules/',
+    'docs/checklists/',
+    'docs/templates/',
+    'docs/harness/',
+    'claudedocs/',
+  ];
+
+  return allowedPrefixes.some((prefix) => relativePath.startsWith(prefix));
+}
+
+function checkMarkdownLinks(filePath, markdownSet) {
+  const content = stripFencedCodeBlocks(fs.readFileSync(filePath, 'utf8'));
+  const linkPattern = /\[[^\]]*]\(([^)]+)\)/g;
+  let match;
+
+  while ((match = linkPattern.exec(content)) !== null) {
+    const rawTarget = match[1];
+    const target = normalizeLinkTarget(rawTarget);
+
+    if (!target || isExternalLink(target)) {
+      continue;
+    }
+
+    if (target.startsWith('#')) {
+      const anchor = decodeAnchor(target.slice(1));
+      if (!anchorExists(filePath, anchor)) {
+        addIssue(FAIL, 'Missing anchor', {
+          source: toRepoPath(filePath),
+          link: target,
+          reason: 'anchor does not exist in the same file',
+        });
+      }
+      continue;
+    }
+
+    const [linkPath, anchorPart] = splitLinkTarget(target);
+    const resolvedPath = path.resolve(path.dirname(filePath), decodePath(linkPath));
+    const resolvedRepoPath = toRepoPath(resolvedPath);
+
+    if (!markdownSet.has(resolvedRepoPath) && !fs.existsSync(resolvedPath)) {
+      addIssue(FAIL, 'Missing linked file', {
+        source: toRepoPath(filePath),
+        link: target,
+        reason: 'file does not exist',
+      });
+      continue;
+    }
+
+    if (anchorPart && !anchorExists(resolvedPath, decodeAnchor(anchorPart))) {
+      addIssue(FAIL, 'Missing anchor', {
+        source: toRepoPath(filePath),
+        link: target,
+        reason: `anchor does not exist in ${resolvedRepoPath}`,
+      });
+    }
+  }
+}
+
+function normalizeLinkTarget(rawTarget) {
+  let target = rawTarget.trim();
+
+  if (target.startsWith('<') && target.endsWith('>')) {
+    target = target.slice(1, -1).trim();
+  }
+
+  const titledMatch = target.match(/^(\S+)(?:\s+["'][^]*["'])$/);
+  if (titledMatch) {
+    target = titledMatch[1];
+  }
+
+  return target;
+}
+
+function splitLinkTarget(target) {
+  const hashIndex = target.indexOf('#');
+  if (hashIndex === -1) {
+    return [target, ''];
+  }
+
+  return [target.slice(0, hashIndex), target.slice(hashIndex + 1)];
+}
+
+function isExternalLink(target) {
+  return /^(https?:|mailto:|tel:|data:|javascript:)/i.test(target);
+}
+
+function decodePath(value) {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
+function decodeAnchor(value) {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
+function anchorExists(filePath, anchor) {
+  if (!fs.existsSync(filePath)) {
+    return false;
+  }
+
+  const headingIds = getHeadingIds(filePath);
+  return headingIds.has(slugifyHeading(anchor));
+}
+
+function getHeadingIds(filePath) {
+  const cacheKey = toRepoPath(filePath);
+  if (headingCache.has(cacheKey)) {
+    return headingCache.get(cacheKey);
+  }
+
+  const content = fs.readFileSync(filePath, 'utf8');
+  const lines = content.split(/\r?\n/);
+  const seenCounts = new Map();
+  const headingIds = new Set();
+
+  for (const line of lines) {
+    const match = line.match(/^(#{1,6})\s+(.*)$/);
+    if (!match) {
+      continue;
+    }
+
+    const rawHeading = stripInlineMarkdown(match[2].trim());
+    const baseId = slugifyHeading(rawHeading);
+    if (!baseId) {
+      continue;
+    }
+
+    const count = seenCounts.get(baseId) || 0;
+    const finalId = count === 0 ? baseId : `${baseId}-${count}`;
+    seenCounts.set(baseId, count + 1);
+    headingIds.add(finalId);
+  }
+
+  headingCache.set(cacheKey, headingIds);
+  return headingIds;
+}
+
+function stripInlineMarkdown(text) {
+  return text
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/\[([^\]]+)]\([^)]+\)/g, '$1')
+    .replace(/[*_~]/g, '')
+    .replace(/<[^>]+>/g, '')
+    .trim();
+}
+
+function slugifyHeading(text) {
+  return text
+    .toLowerCase()
+    .trim()
+    .replace(/[^\p{Letter}\p{Number}\s-]/gu, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
+function checkHookRegistration() {
+  const settingsPath = path.join(repoRoot, '.claude/settings.json');
+  const hooksDir = path.join(repoRoot, '.claude/hooks/harness');
+
+  if (!fs.existsSync(settingsPath)) {
+    addIssue(FAIL, 'Missing settings file', {
+      file: '.claude/settings.json',
+      reason: 'hook registration source is missing',
+    });
+    return;
+  }
+
+  if (!fs.existsSync(hooksDir)) {
+    addIssue(FAIL, 'Missing hooks directory', {
+      file: '.claude/hooks/harness',
+      reason: 'hook implementations directory is missing',
+    });
+    return;
+  }
+
+  const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+  const registeredHooks = getRegisteredHookPaths(settings);
+  const actualHooks = fs
+    .readdirSync(hooksDir)
+    .filter((name) => name.endsWith('.mjs'))
+    .map((name) => `.claude/hooks/harness/${name}`);
+
+  for (const hookPath of registeredHooks) {
+    const absoluteHookPath = path.join(repoRoot, hookPath);
+    if (!fs.existsSync(absoluteHookPath)) {
+      addIssue(FAIL, 'Missing registered hook file', {
+        file: hookPath,
+        reason: 'registered in .claude/settings.json but file does not exist',
+      });
+    }
+  }
+
+  for (const hookPath of actualHooks) {
+    if (!registeredHooks.has(hookPath)) {
+      addIssue(WARNING, 'Orphan hook file', {
+        file: hookPath,
+        reason: 'exists in repo but is not registered in .claude/settings.json',
+      });
+    }
+  }
+}
+
+function getRegisteredHookPaths(settings) {
+  const hookPaths = new Set();
+
+  function visit(value) {
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        visit(item);
+      }
+      return;
+    }
+
+    if (!value || typeof value !== 'object') {
+      return;
+    }
+
+    if (typeof value.command === 'string') {
+      const matches = value.command.match(/\.claude\/hooks\/harness\/[A-Za-z0-9._/-]+\.mjs/g) || [];
+      for (const match of matches) {
+        hookPaths.add(match);
+      }
+    }
+
+    for (const nestedValue of Object.values(value)) {
+      visit(nestedValue);
+    }
+  }
+
+  visit(settings);
+  return hookPaths;
+}
+
+function checkReferenceDocs() {
+  const sourcePath = path.join(repoRoot, 'CLAUDE.md');
+  const referenceDocs = [
+    'claudedocs/CLAUDEKR.md',
+    'claudedocs/CLAUDE_original.md',
+  ];
+  const currentSourceHash = getClaudeSourceCommitHash();
+
+  for (const relativePath of referenceDocs) {
+    const filePath = path.join(repoRoot, relativePath);
+
+    if (!fs.existsSync(filePath)) {
+      addIssue(FAIL, 'Missing reference doc', {
+        file: relativePath,
+        reason: 'reference doc required by policy sync process does not exist',
+      });
+      continue;
+    }
+
+    const content = fs.readFileSync(filePath, 'utf8');
+    const sourceOfTruth = extractMetadataField(content, 'source_of_truth');
+    const sourceCommitHash = extractMetadataField(content, 'source_commit_hash');
+    const status = extractMetadataField(content, 'status') || '';
+    const isMarkedStale = /\bstale\b/i.test(status);
+
+    if (!sourceOfTruth) {
+      addIssue(FAIL, 'Missing canonical source metadata', {
+        file: relativePath,
+        reason: 'source_of_truth metadata is missing',
+      });
+      continue;
+    }
+
+    const resolvedSourcePath = path.normalize(path.resolve(path.dirname(filePath), sourceOfTruth));
+    if (resolvedSourcePath !== sourcePath) {
+      addIssue(FAIL, 'Canonical source mismatch', {
+        file: relativePath,
+        reason: `source_of_truth points to ${toRepoPath(resolvedSourcePath)} instead of CLAUDE.md`,
+      });
+    }
+
+    if (!currentSourceHash || !sourceCommitHash) {
+      continue;
+    }
+
+    if (sourceCommitHash !== currentSourceHash && !isMarkedStale) {
+      addIssue(WARNING, 'Unmarked stale reference doc', {
+        file: relativePath,
+        reason: `source_commit_hash (${sourceCommitHash}) does not match CLAUDE.md (${currentSourceHash})`,
+      });
+    }
+  }
+}
+
+function extractMetadataField(content, fieldName) {
+  const pattern = new RegExp(`^${fieldName}:\\s*(.+)$`, 'm');
+  const match = content.match(pattern);
+  return match ? match[1].trim() : '';
+}
+
+function getClaudeSourceCommitHash() {
+  try {
+    return execFileSync('git', ['log', '-1', '--format=%H', '--', 'CLAUDE.md'], {
+      cwd: repoRoot,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+  } catch {
+    return '';
+  }
+}
+
+function checkReadmeAndIndexRefs() {
+  const skillNames = getDirectoryNames(path.join(repoRoot, '.claude/skills'));
+  const hookNames = getHookNames(path.join(repoRoot, '.claude/hooks/harness'));
+  const structureCountClaims = [
+    {
+      label: 'rules/',
+      dirPath: path.join(repoRoot, 'rules'),
+      extension: '.md',
+    },
+    {
+      label: 'checklists/',
+      dirPath: path.join(repoRoot, 'checklists'),
+      extension: '.md',
+    },
+    {
+      label: 'templates/',
+      dirPath: path.join(repoRoot, 'templates'),
+      extension: '.md',
+    },
+    {
+      label: 'hooks/harness/',
+      dirPath: path.join(repoRoot, '.claude/hooks/harness'),
+      extension: '.mjs',
+    },
+  ];
+  const filesToCheck = ['README.md', 'README.en.md', 'INDEX.md', 'CLAUDE.md']
+    .map((relativePath) => path.join(repoRoot, relativePath))
+    .filter((filePath) => fs.existsSync(filePath));
+
+  for (const filePath of filesToCheck) {
+    const content = fs.readFileSync(filePath, 'utf8');
+    const relativePath = toRepoPath(filePath);
+
+    const skillRefs = extractSkillRefs(content);
+    for (const skillName of skillRefs) {
+      if (!skillNames.has(skillName)) {
+        addIssue(FAIL, 'Missing referenced skill', {
+          source: relativePath,
+          skill: `/${skillName}`,
+          reason: 'command is referenced in docs but matching .claude/skills entry does not exist',
+        });
+      }
+    }
+
+    const hookRefs = extractHookRefs(content);
+    for (const hookName of hookRefs) {
+      if (!hookNames.has(hookName)) {
+        addIssue(FAIL, 'Missing referenced hook', {
+          source: relativePath,
+          hook: hookName,
+          reason: 'hook is referenced in docs but matching file does not exist',
+        });
+      }
+    }
+
+    for (const claim of structureCountClaims) {
+      const claimedCount = extractCountClaim(content, claim.label);
+      if (claimedCount === null) {
+        continue;
+      }
+
+      const { totalCount, contentCount } = countImmediateFiles(claim.dirPath, claim.extension);
+      if (claimedCount !== totalCount && claimedCount !== contentCount) {
+        addIssue(FAIL, 'Structure count mismatch', {
+          source: relativePath,
+          target: claim.label,
+          claimed: String(claimedCount),
+          actual: `${totalCount} total / ${contentCount} excluding INDEX`,
+          reason: 'documented structure count does not match repo contents',
+        });
+      }
+    }
+  }
+}
+
+function extractCountClaim(content, label) {
+  const escapedLabel = escapeRegExp(label);
+  const pattern = new RegExp(`${escapedLabel}[^\\n]*\\((\\d+)(?:개)?\\)`, 'i');
+  const match = content.match(pattern);
+  return match ? Number(match[1]) : null;
+}
+
+function countImmediateFiles(dirPath, extension) {
+  if (!fs.existsSync(dirPath)) {
+    return { totalCount: 0, contentCount: 0 };
+  }
+
+  const fileNames = fs.readdirSync(dirPath).filter((name) => name.endsWith(extension));
+  const totalCount = fileNames.length;
+  const contentCount = fileNames.filter((name) => name.toLowerCase() !== `index${extension}`).length;
+
+  return { totalCount, contentCount };
+}
+
+function stripFencedCodeBlocks(content) {
+  const lines = content.split(/\r?\n/);
+  const strippedLines = [];
+  let activeFence = '';
+
+  for (const line of lines) {
+    const fenceMatch = line.match(/^\s*(```+|~~~+)/);
+    if (fenceMatch) {
+      const marker = fenceMatch[1][0];
+      if (!activeFence) {
+        activeFence = marker;
+      } else if (activeFence === marker) {
+        activeFence = '';
+      }
+      strippedLines.push('');
+      continue;
+    }
+
+    strippedLines.push(activeFence ? '' : line);
+  }
+
+  return strippedLines.join('\n');
+}
+
+function extractSkillRefs(content) {
+  const refs = new Set();
+  const inlinePattern = /`\/([a-z0-9-]+)(?!\/)\b[^`]*`/gi;
+  const fencedLines = extractFencedCodeLines(content);
+  let match;
+
+  while ((match = inlinePattern.exec(content)) !== null) {
+    refs.add(match[1].toLowerCase());
+  }
+
+  for (const line of fencedLines) {
+    const commandMatch = line.match(/^\s*\/([a-z0-9-]+)(?!\/)\b/i);
+    if (commandMatch) {
+      refs.add(commandMatch[1].toLowerCase());
+    }
+  }
+
+  return refs;
+}
+
+function extractHookRefs(content) {
+  const refs = new Set();
+  const lines = content.split(/\r?\n/);
+
+  for (const line of lines) {
+    if (!/(hook|hooks|훅|hooks\/harness)/i.test(line)) {
+      continue;
+    }
+
+    const codeSegments = line.match(/`([^`]+)`/g) || [];
+    for (const segment of codeSegments) {
+      const value = segment.slice(1, -1);
+      const pathMatch = value.match(/\.claude\/hooks\/harness\/([A-Za-z0-9._-]+)\.mjs/);
+      if (pathMatch) {
+        refs.add(pathMatch[1]);
+        continue;
+      }
+
+      const bareMatch = value.match(/^([a-z0-9]+(?:-[a-z0-9]+)+)$/i);
+      if (bareMatch) {
+        refs.add(bareMatch[1]);
+      }
+    }
+  }
+
+  return refs;
+}
+
+function extractFencedCodeLines(content) {
+  const lines = content.split(/\r?\n/);
+  const codeLines = [];
+  let activeFence = '';
+
+  for (const line of lines) {
+    const fenceMatch = line.match(/^\s*(```+|~~~+)/);
+    if (fenceMatch) {
+      const marker = fenceMatch[1][0];
+      if (!activeFence) {
+        activeFence = marker;
+      } else if (activeFence === marker) {
+        activeFence = '';
+      }
+      continue;
+    }
+
+    if (activeFence) {
+      codeLines.push(line);
+    }
+  }
+
+  return codeLines;
+}
+
+function getDirectoryNames(dirPath) {
+  if (!fs.existsSync(dirPath)) {
+    return new Set();
+  }
+
+  return new Set(
+    fs.readdirSync(dirPath, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name),
+  );
+}
+
+function getHookNames(dirPath) {
+  if (!fs.existsSync(dirPath)) {
+    return new Set();
+  }
+
+  return new Set(
+    fs.readdirSync(dirPath)
+      .filter((name) => name.endsWith('.mjs'))
+      .map((name) => name.replace(/\.mjs$/, '')),
+  );
+}
+
+function addIssue(severity, title, details) {
+  const detailEntries = Object.entries(details)
+    .filter(([, value]) => value)
+    .map(([key, value]) => `${key}:${value}`);
+  const issueKey = [severity, title, ...detailEntries].join('|');
+
+  if (issues.some((issue) => issue.key === issueKey)) {
+    return;
+  }
+
+  issues.push({
+    key: issueKey,
+    severity,
+    title,
+    details,
+  });
+}
+
+function hasFailures() {
+  return issues.some((issue) => issue.severity === FAIL);
+}
+
+function printReport() {
+  const failures = issues.filter((issue) => issue.severity === FAIL);
+  const warnings = issues.filter((issue) => issue.severity === WARNING);
+
+  let status = 'OK';
+  if (failures.length > 0) {
+    status = 'FAIL';
+  } else if (warnings.length > 0) {
+    status = 'WARN';
+  }
+
+  console.log(`[docs:drift] ${status} (${failures.length} errors, ${warnings.length} warnings)`);
+
+  if (failures.length === 0 && warnings.length === 0) {
+    return;
+  }
+
+  if (failures.length > 0) {
+    console.log('');
+    console.log('FAIL:');
+    printIssueBlock(failures);
+  }
+
+  if (warnings.length > 0) {
+    console.log('');
+    console.log('WARNING:');
+    printIssueBlock(warnings);
+  }
+}
+
+function printIssueBlock(group) {
+  group.forEach((issue, index) => {
+    console.log(`${index + 1}. ${issue.title}`);
+    for (const [key, value] of Object.entries(issue.details)) {
+      console.log(`   - ${formatDetailKey(key)}: ${value}`);
+    }
+  });
+}
+
+function formatDetailKey(key) {
+  return key
+    .replace(/_/g, ' ')
+    .replace(/^\w/, (char) => char.toUpperCase());
+}
+
+function toRepoPath(filePath) {
+  return path.relative(repoRoot, filePath).replace(/\\/g, '/');
+}
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
