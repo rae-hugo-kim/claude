@@ -29,7 +29,13 @@ description: Divergent-thinking skill with two modes — companion (user-driven;
 | **동행** | "같이 생각해", "내 생각 정리", "발전시키고 싶다", "어떻게 접근하면 좋을지", 일반 "브레인스토밍/발산" |
 | **발산기** | "아이디어 줘", "랜덤하게", "다른 각도", "옵션 펼쳐줘", "여러 방법", "ideate", "후보 뽑아줘" |
 
+**충돌 우선순위**: 한 입력에 두 모드 신호가 같이 잡히면 (예: "브레인스토밍으로 **아이디어 줘**"), 발산기 신호가 더 구체적 의도이므로 **발산기 우선**. 단 일반 "브레인스토밍/발산"만 단독으로 있으면 동행이 기본. 그래도 모호하면 (예: "이거 좀 생각해보자") `AskUserQuestion`으로 1회 확인.
+
 판별 후 첫 응답에서 어느 모드로 들어가는지 짧게 알린다. 캡처 파일 생성은 두 모드 공통(아래 **공통: 캡처** 참조).
+
+## Inputs
+
+- `$ARGUMENTS`: 주제 한 줄 (선택). 없으면 첫 사용자 메시지에서 슬러그를 추출하거나, 첫 응답에서 "주제 한 줄로 정해주실래요?"를 **1회만** 묻는다 (발산이 끊기지 않게 강요하지 않음).
 
 ---
 
@@ -73,7 +79,7 @@ description: Divergent-thinking skill with two modes — companion (user-driven;
 ## 페이싱 휴리스틱
 
 - 갈래 3개 이상이면 한 번만 "[A] [B] [C] 중 어디부터?" 정렬. 다른 갈래 닫지 않음.
-- 막힌 갈래는 강제 전환 X. 막다른 길도 배움.
+- 막힌 갈래는 강제 전환 X. 막다른 길도 배움. 사용자가 직접 "다른 갈래로 가자" 할 때까지 **대기**하거나, 그 갈래 안에서 무브 1회만 더 시도.
 - 침묵 메우지 않음.
 - 응답은 짧게 — 긴 응답은 사용자 사고 흐름을 끊음.
 - 사용자가 답을 던지면 즉시 평가/확장 말고 1-2번 머무름.
@@ -113,8 +119,8 @@ description: Divergent-thinking skill with two modes — companion (user-driven;
 
 진짜 병렬 격리로 anchoring을 구조적으로 제거. 비용·시간 5-10배이므로 **명시 요청 시만**.
 
-1. 프레임 선택 (최대 5개 — 비용 통제)
-2. `Agent` 도구로 프레임당 subagent 1개를 **병렬 호출** (한 메시지에 복수 Agent 블록). 각 subagent에게:
+1. 프레임 선택 (**최대 5개** — 프레임당 subagent 1개이므로 subagent 수도 5개 cap, 비용 통제)
+2. `Agent` 도구로 프레임당 subagent 1개를 **병렬 호출** (한 응답에 복수 Agent tool-use 블록을 함께 보냄). 각 subagent에게:
    - 문제 statement + 배정된 프레임 1개만 전달
    - **다른 프레임/다른 subagent의 결과를 보여주지 않음** (격리 = anchoring 제거)
    - "평가·순위·hedging 금지, 순수 생성만, 아이디어 3-5개" 지시
@@ -124,6 +130,7 @@ description: Divergent-thinking skill with two modes — companion (user-driven;
    - 비obvious 픽 1-2개 강조
    - 상위 몇 개를 sketch로 살짝 deepen
 4. critic은 **제거가 아니라 라벨링** — 사용자가 버려진 안도 볼 수 있게 전부 보존
+5. **부분 실패 처리**: 일부 subagent가 실패/빈 응답이면, 성공한 프레임만으로 critic 진행하고 실패 프레임을 사용자에게 고지 ("프레임 N개 중 M개 회수"). 전부 실패하면 라이트 엔진으로 강등.
 
 ## 발산기 모드 캡처
 
@@ -134,6 +141,8 @@ description: Divergent-thinking skill with two modes — companion (user-driven;
 # 공통: 캡처 (두 모드 strict, 자동)
 
 **원칙: 결정 정리가 아니라 발산의 흐름·결과 자체를 보존.** 개발 입력이 아니라 사고 아카이브.
+
+**공유되는 것**: 파일 위치/생성 규칙, 후처리 금지, 사용자 명시 종료. **모드별로 다른 것**: append 형식 — 동행은 turn-by-turn verbatim 대화, 발산기는 frame/idea 중심 구조화 기록. 이 형식 차이는 의도된 것 (주체가 다르므로 보존 대상도 다름).
 
 ## 파일 생성 (모드 무관, 세션당 1회)
 
@@ -164,7 +173,11 @@ Topic: <한 줄 topic statement>
 [HH:MM] 클로드: <응답 verbatim>
 ```
 
-재구조화/요약/축약 X. 사이드 갈래·포기 갈래도 보존.
+- **Verbatim**: 사용자가 쓴 그대로, 에이전트가 응답한 그대로. 재구조화/요약/축약 X.
+- **Timestamp**: KST 기준 `HH:MM`, 응답 작성 시점.
+- **Turn 구분**: 빈 줄 1개.
+- **사이드 갈래·포기 갈래**: 그대로 보존.
+- **메타 발언**(모드 진입/종료 안내 등)도 포함 — 메타도 사고 과정의 일부.
 
 ## 발산기 모드 append
 
