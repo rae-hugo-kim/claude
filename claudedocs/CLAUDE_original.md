@@ -110,7 +110,7 @@ Final report MUST name which gate was unavailable, how the manual checklist was 
 
 These are hard rules with no silent exceptions:
 
-- **No guessing**: do not invent versions, commands, APIs, or files.
+- **No guessing**: do not invent versions, commands, APIs, or files; and do not conclude an artifact is absent from one narrow guess — when its path is uncertain, search broadly first (see `rules/information_discovery.md`).
 - **Repo commands**: never guess build/test/lint/typecheck/e2e/eval commands. Discover them from the repo (see Command Discovery section).
 - **Risky actions**: require explicit user approval before proposing or executing risky changes.
 - **Verification**: every user-impacting change must include at least one reproducible verification artifact.
@@ -454,6 +454,7 @@ The following linked modules expand specific rules. Consult them for full detail
 | `rules/agent_security.md` | Agent-specific security rules |
 | `rules/anti_hallucination.md` | No-guessing discipline and evidence ladder |
 | `rules/repo_command_discovery.md` | How to discover build/test commands |
+| `rules/information_discovery.md` | Breadth-first search for info artifacts before concluding absence |
 | `rules/mcp_policy.md` | Full MCP server policies |
 | `rules/context7_policy.md` | When and how to use Context7 |
 | `rules/verification_tests_and_evals.md` | Tests, evals, EDD, verification paths |

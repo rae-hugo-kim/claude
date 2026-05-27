@@ -87,7 +87,7 @@ Harness 검증 계약 세부 사항: [`rules/harness_integration_contract.md`](.
 
 ## 양보 불가 항목 (MUST)
 
-- **추측 금지**: 버전, 커맨드, API, 파일을 발명하지 않습니다.
+- **추측 금지**: 버전, 커맨드, API, 파일을 발명하지 않습니다. 또한 한 군데만 좁게 확인하고 산출물이 "없다"고 단정하지 않습니다 — 경로가 불확실하면 먼저 넓게 검색합니다 ([`rules/information_discovery.md`](../rules/information_discovery.md)).
 - **레포 커맨드**: build/test/lint/typecheck/e2e/eval 커맨드를 추측하지 않습니다. 레포에서 찾아 사용합니다.
 - **위험 작업**: 위험한 변경을 제안/실행하기 전에 명시적 승인을 받습니다.
 - **검증**: 사용자 영향 변경은 최소 1개의 재현 가능한 검증 아티팩트가 있어야 합니다.
@@ -126,6 +126,7 @@ Harness 검증 계약 세부 사항: [`rules/harness_integration_contract.md`](.
 - Safety & security: [`rules/safety_security.md`](../rules/safety_security.md)
 - Anti-hallucination & evidence: [`rules/anti_hallucination.md`](../rules/anti_hallucination.md)
 - Repo command discovery: [`rules/repo_command_discovery.md`](../rules/repo_command_discovery.md)
+- Information discovery (breadth-first): [`rules/information_discovery.md`](../rules/information_discovery.md)
 - MCP server policies: [`rules/mcp_policy.md`](../rules/mcp_policy.md)
 - Context7 trigger policy: [`rules/context7_policy.md`](../rules/context7_policy.md)
 - Verification (tests + evals): [`rules/verification_tests_and_evals.md`](../rules/verification_tests_and_evals.md)
