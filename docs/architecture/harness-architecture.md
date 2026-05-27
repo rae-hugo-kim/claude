@@ -234,8 +234,6 @@ flowchart TB
         G4["삭제 작업 미차단<br/>(rm, git checkout -- 등)"]
         G5["비용/토큰 사용량 게이트 없음"]
         G6["보안 게이트 없음<br/>(.env, 시크릿 커밋 방지)"]
-        G7["PreCompact 훅 미사용<br/>(컨텍스트 압축 전 상태 보존)"]
-        G8["Stop 훅 미사용<br/>(세션 종료 시 정리/요약)"]
     end
 
     subgraph partial["⚠️ 부분 커버"]
@@ -244,8 +242,14 @@ flowchart TB
         P3["scope-gate — 파일 경로만 검사<br/>(코드 내용 변경 의도 미검사)"]
     end
 
+    subgraph decided["🟦 의도적 미채택 (결정)"]
+        G7["PreCompact 훅 미채택<br/>(압축 거의 발생 안 함)"]
+        G8["Stop 자동 요약 미채택<br/>(세션 종료 기계 감지 불가)"]
+    end
+
     style gaps fill:#8b0000,stroke:#ff4444,color:#fff
     style partial fill:#8b6914,stroke:#ffa500,color:#fff
+    style decided fill:#1c3d5a,stroke:#4a90d9,color:#fff
     style covered fill:#006400,stroke:#00ff00,color:#fff
 ```
 
@@ -281,13 +285,16 @@ flowchart TB
 - **참고**: `.gitignore`가 1차 방어이나, 에이전트가 `git add -f`를 쓰면 우회됨.
 - **대안**: PreToolUse(Bash)에서 `git add`/`git commit` 시 민감 파일 패턴 검사.
 
-#### G7. PreCompact 훅 미사용
-- **현황**: 컨텍스트 압축 전에 중요 상태를 보존할 기회를 활용하지 않음.
-- **가능성**: 압축 전 현재 scope/AC 상태를 요약하여 압축 후 컨텍스트에 주입.
+#### G7. PreCompact 훅 — 의도적 미채택 (결정 2026-05-27)
+- **현황**: 컨텍스트 압축 전 상태 보존 훅을 두지 않음. **갭이 아니라 결정**임.
+- **근거**: 우리 사용 패턴에서 한 세션이 컨텍스트의 ~50%도 채우는 일이 드물어 압축이 거의 발생하지 않음 → 압축 트리거 훅은 사실상 안 돎. 유지비 대비 가치 낮음.
+- **참조**: `rules/session_persistence.md`의 "Decision: summarization stays manual" 섹션.
 
-#### G8. Stop 훅 미사용
-- **현황**: 세션 종료 시 정리, 요약, 상태 리셋 등의 자동화 없음.
-- **가능성**: 세션 종료 시 test-history 정리, 미완료 AC 경고, 세션 요약 생성.
+#### G8. Stop 훅 (세션 요약 부분) — 의도적 미채택 (결정 2026-05-27)
+- **현황**: 세션 종료 시 **자동 요약**은 두지 않음. **갭이 아니라 결정**임.
+- **근거**: `Stop` 훅은 어시스턴트 턴 종료 시 발화하지, 사용자가 작업 스레드를 끝내는 시점이 아님. 세션 종료는 기계로 감지 불가(사용자만 판단) → Stop 기반 자동 요약은 오발화함. 요약은 `sum` 스킬로 수동 유지.
+- **여전히 열린 부분**: test-history 정리·미완료 AC 경고 같은 비-요약 Stop 훅 아이디어는 별개로 검토 가능.
+- **참조**: `rules/session_persistence.md`의 "Decision: summarization stays manual" 섹션.
 
 ## 5. 훅 이벤트별 등록 현황
 
@@ -369,7 +376,7 @@ flowchart LR
 | **P0** | G6: 시크릿 커밋 방지 | PreToolUse(Bash)에 `git add`/`git commit` 시 `.env`, `*credential*`, `*secret*` 패턴 검사 추가 | Low |
 | **P1** | G4: 파괴적 명령 차단 | PreToolUse(Bash)에 `rm -rf`, `git checkout --`, `git clean`, `git reset --hard` 패턴 검사 | Low |
 | **P1** | G3: MCP 게이팅 | PreToolUse matcher에 `mcp__supabase*\|mcp__serena*` 추가, scope 검사 연동 | Medium |
-| **P2** | G8: Stop 훅 | 세션 종료 시 미완료 AC 경고 + 세션 요약 자동 생성 | Low |
-| **P2** | G7: PreCompact | 압축 전 scope/AC 상태 스냅샷을 시스템 프롬프트에 주입 | Medium |
+| **P2** | G8: Stop 훅 | 세션 종료 시 미완료 AC 경고 (요약 자동 생성은 미채택 — §4.3 G8) | Low |
+| **—** | G7: PreCompact | **미채택 (결정 2026-05-27)** — 압축이 거의 발생 안 함. §4.3 G7 | — |
 | **P3** | G2: 서브에이전트 | 서브에이전트용 read-log 공유 메커니즘 (현재 Claude Code 아키텍처 제약) | High |
 | **P3** | G5: 비용 게이트 | 토큰 임계값 초과 시 경고/차단 (OMC HUD 연동) | Medium |

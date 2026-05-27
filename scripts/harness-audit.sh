@@ -166,13 +166,6 @@ score_context_efficiency() {
   else
     skip context_efficiency ".omc/state reference"
   fi
-
-  # PreCompact hook (Node or shell)
-  if compgen -G "$ROOT/.claude/hooks/harness/pre-compact.*" >/dev/null 2>&1; then
-    award context_efficiency 3 "PreCompact hook present"
-  else
-    skip context_efficiency "PreCompact hook (.claude/hooks/harness/pre-compact.*)"
-  fi
 }
 
 # --- 3. Quality Gates ---
