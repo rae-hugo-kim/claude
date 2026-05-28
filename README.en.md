@@ -151,6 +151,17 @@ Projects created with `/init` or `/bootstrap` get a SessionStart hook that check
 
 `--audit` invokes `scripts/harness-audit.sh` and scores tool_coverage, context_efficiency, quality_gates, memory_persistence, eval_coverage, security_guardrails, cost_efficiency.
 
+### Audit history (issue #11)
+
+Every `harness/*` tag fire (via `scripts/harness-version-bump.sh`) automatically appends one JSON row to `.omc/state/harness-scores.jsonl`. Series are separated by the `rubric_version` field — when scoring rules change, the new series starts fresh.
+
+**rubric_version bump workflow** (when scoring rules change):
+1. Increment the `RUBRIC_VERSION` constant at the top of `scripts/harness-audit.sh`
+2. In the same commit, land the rule change (new category / threshold shift / weighting change)
+3. On the next harness tag fire, a new series begins
+
+Consumers can read the current version with `bash scripts/harness-audit.sh --rubric-version`.
+
 ## Docs Viewer (mdBook)
 
 Local viewer that renders the Markdown SST as a human-friendly HTML site. Each project serves its own `docs/` independently.

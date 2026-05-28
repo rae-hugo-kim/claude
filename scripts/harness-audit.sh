@@ -21,6 +21,11 @@
 
 set -euo pipefail
 
+# Rubric version: bump whenever scoring rules change (new category, threshold
+# shift, weighting change). Consumers (e.g. harness-version-bump.sh) tag each
+# stored audit row with this so series can be split on rule evolution.
+RUBRIC_VERSION="1"
+
 ROOT="$(pwd)"
 TERSE=0
 
@@ -30,6 +35,7 @@ while [[ $# -gt 0 ]]; do
       [[ $# -ge 2 ]] || { echo "Missing argument for --root" >&2; exit 2; }
       ROOT="$2"; shift 2;;
     --terse) TERSE=1; shift;;
+    --rubric-version) echo "$RUBRIC_VERSION"; exit 0;;
     -h|--help)
       sed -n '2,18p' "$0" | sed 's/^# \?//'; exit 0;;
     *) echo "Unknown flag: $1" >&2; exit 2;;

@@ -151,6 +151,17 @@ git config core.hooksPath .githooks
 
 `--audit`은 `scripts/harness-audit.sh`를 호출해 tool_coverage, context_efficiency, quality_gates, memory_persistence, eval_coverage, security_guardrails, cost_efficiency를 점수화합니다.
 
+### Audit history (issue #11)
+
+`harness/*` 태그가 발사될 때마다 (`scripts/harness-version-bump.sh` 경유) audit 결과가 `.omc/state/harness-scores.jsonl`에 한 줄씩 자동 누적됩니다. 시리즈는 `rubric_version` 필드로 구분되어, 채점 룰이 바뀌면 이전 시리즈와 분리됩니다.
+
+**rubric_version bump workflow** (채점 룰 변경 시):
+1. `scripts/harness-audit.sh` 상단의 `RUBRIC_VERSION` 상수를 1 증가
+2. 같은 커밋에서 룰 변경(카테고리 추가/임계값 시프트/가중치 변경) 반영
+3. 다음 harness 태그 발사 시 새 시리즈가 시작됨
+
+소비자는 `bash scripts/harness-audit.sh --rubric-version`으로 현재 버전을 읽을 수 있습니다.
+
 ## Docs 뷰어 (mdBook)
 
 마크다운(SST)을 사람 친화적 HTML로 렌더링하는 로컬 뷰어. 각 프로젝트가 자기 `docs/`를 독립적으로 serve합니다.

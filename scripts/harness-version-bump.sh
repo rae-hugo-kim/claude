@@ -65,3 +65,36 @@ git -C "$REPO_ROOT" commit --amend --no-edit
 git -C "$REPO_ROOT" tag -a "$tag_name" -m "harness ${new_version}"
 
 echo "harness version bumped: ${current_version} -> ${new_version} (tag: ${tag_name})"
+
+# --- 8. Append audit score row to history (best-effort; failure must not block) ---
+# Issue #11: track audit results over time at each harness/* tag fire.
+# Output: .omc/state/harness-scores.jsonl, one JSON object per line.
+{
+  scores_file="$REPO_ROOT/.omc/state/harness-scores.jsonl"
+  mkdir -p "$(dirname "$scores_file")"
+  audit_out="$(bash "$REPO_ROOT/scripts/harness-audit.sh" --root "$REPO_ROOT" --terse 2>/dev/null)"
+  rubric_version="$(bash "$REPO_ROOT/scripts/harness-audit.sh" --rubric-version 2>/dev/null)"
+  ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  printf '%s' "$audit_out" | TS="$ts" VERSION="$new_version" RUBRIC="$rubric_version" python3 -c '
+import json, os, re, sys
+total = None
+by_cat = {}
+for line in sys.stdin.read().splitlines():
+    m = re.match(r"^\s*TOTAL:\s+(\d+)/\d+\s*$", line)
+    if m:
+        total = int(m.group(1))
+        continue
+    m = re.match(r"^\s+(\w+):\s+(\d+)/10\s*$", line)
+    if m:
+        by_cat[m.group(1)] = int(m.group(2))
+row = {
+    "ts": os.environ["TS"],
+    "version": os.environ["VERSION"],
+    "rubric_version": os.environ["RUBRIC"],
+    "total": total,
+    "by_cat": by_cat,
+}
+print(json.dumps(row))
+' >> "$scores_file"
+  echo "harness audit recorded -> ${scores_file}"
+} || true
