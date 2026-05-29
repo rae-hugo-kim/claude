@@ -6,6 +6,24 @@
 
 set -euo pipefail
 
+# --- 0. Re-exec from a private temp copy (self-overwrite safety) ---
+# Step 6 below overwrites whitelist PATHS in-place, and PATHS includes this
+# script (scripts/harness-sync.sh). `cp` truncates the destination inode in
+# place, so a shell still reading this file mid-run would execute garbage and
+# the sync would fail or partially complete (recurring every harness-check
+# because meta is never updated). Running from a throwaway copy makes the
+# in-place overwrite of the on-disk script harmless to the live process, and
+# still lets the script self-update in consumer repos.
+if [[ -z "${_HARNESS_SYNC_REEXEC:-}" ]]; then
+  _self="$(mktemp)"
+  cp "$0" "$_self"
+  _HARNESS_SYNC_REEXEC=1 _HARNESS_SYNC_SELF="$_self" exec bash "$_self" "$@"
+fi
+
+# Clean up both the shallow clone ($tmp, set later) and this temp self-copy.
+_cleanup() { rm -rf "${tmp:-}" "${_HARNESS_SYNC_SELF:-}"; }
+trap _cleanup EXIT
+
 DRY_RUN=0
 [[ "${1:-}" == "--dry-run" ]] && DRY_RUN=1
 
@@ -48,7 +66,7 @@ echo "Target: harness/$latest_tag"
 
 # --- 4. Shallow clone the target tag into temp ---
 tmp=$(mktemp -d)
-trap "rm -rf $tmp" EXIT
+# (cleanup of $tmp handled by the _cleanup EXIT trap registered at the top)
 git clone --quiet --depth 1 --branch "harness/$latest_tag" "$source_remote" "$tmp"
 target_sha=$(git -C "$tmp" rev-parse HEAD)
 
