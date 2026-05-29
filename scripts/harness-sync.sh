@@ -27,7 +27,17 @@ fi
 # assigned). The temp self-copy lives outside REPO_ROOT, so step 6's in-place
 # overwrite never touches the running process.
 tmp=""
-_cleanup() { rm -rf "${tmp:-}" "${_HARNESS_SYNC_SELF:-}"; }
+# Cleanup is deliberately conservative — it only removes paths THIS process
+# created. $tmp is removed only when non-empty; the temp self-copy is removed
+# only when _HARNESS_SYNC_SELF equals $0 (true after our own re-exec, where
+# $0 IS the temp copy). That stops a forged `_HARNESS_SYNC_REEXEC=1` plus a
+# hostile/stale `_HARNESS_SYNC_SELF` from turning cleanup into an arbitrary
+# `rm -rf` on self-skip / dry-run / any exit.
+_cleanup() {
+  [[ -n "${tmp:-}" ]] && rm -rf -- "$tmp"
+  [[ -n "${_HARNESS_SYNC_SELF:-}" && "$_HARNESS_SYNC_SELF" == "$0" ]] && rm -f -- "$_HARNESS_SYNC_SELF"
+  return 0
+}
 trap _cleanup EXIT
 
 DRY_RUN=0
