@@ -46,7 +46,9 @@ DRY_RUN=0
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 META_FILE="$REPO_ROOT/.claude/hooks/harness/harness-meta.json"
 DEFAULT_SOURCE="git@github.com:rae-hugo-kim/claude.git"
-SOURCE_MATCH_RE="rae-hugo-kim/claude(\.git)?$"
+# Anchor to a host/path boundary so e.g. `notrae-hugo-kim/claude.git` does NOT
+# match and wrongly self-skip sync (codex review nit).
+SOURCE_MATCH_RE='(^|[:/])rae-hugo-kim/claude(\.git)?$'
 
 # --- 1. Detect source repo (self-skip) ---
 origin_url=$(git -C "$REPO_ROOT" remote get-url origin 2>/dev/null || true)
