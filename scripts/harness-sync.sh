@@ -16,11 +16,17 @@ set -euo pipefail
 # still lets the script self-update in consumer repos.
 if [[ -z "${_HARNESS_SYNC_REEXEC:-}" ]]; then
   _self="$(mktemp)"
+  trap 'rm -f "$_self"' EXIT   # cover the pre-exec window before _cleanup is registered
   cp "$0" "$_self"
   _HARNESS_SYNC_REEXEC=1 _HARNESS_SYNC_SELF="$_self" exec bash "$_self" "$@"
 fi
 
-# Clean up both the shallow clone ($tmp, set later) and this temp self-copy.
+# Initialize tmp empty BEFORE registering the trap: otherwise _cleanup's
+# `rm -rf "${tmp:-}"` would expand an inherited lowercase `tmp` ENV var and
+# delete it on an early exit (e.g. the self-skip path, where tmp is never
+# assigned). The temp self-copy lives outside REPO_ROOT, so step 6's in-place
+# overwrite never touches the running process.
+tmp=""
 _cleanup() { rm -rf "${tmp:-}" "${_HARNESS_SYNC_SELF:-}"; }
 trap _cleanup EXIT
 
