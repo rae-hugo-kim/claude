@@ -6,6 +6,7 @@
 
 import { readFileSync, existsSync, appendFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
+import { isGitCommit } from './git-commit-detect.mjs';
 
 // Use project-local state directory
 function getStateDir(cwd) {
@@ -39,7 +40,7 @@ const command = data?.tool_input?.command || '';
 log(`Command: ${command}`);
 
 // Only check for git commit commands
-if (!command.match(/(?:^|&&|\|\||;)\s*git\b[^|;]*\bcommit\b/)) {
+if (!isGitCommit(command)) {
   log('Not a git commit, allowing');
   process.exit(0);
 }

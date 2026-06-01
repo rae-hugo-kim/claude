@@ -11,6 +11,7 @@ import { readFileSync, existsSync, appendFileSync, mkdirSync, readdirSync, unlin
 import { join } from 'path';
 import { execSync } from 'child_process';
 import { assessRisk } from './risk-assess.mjs';
+import { isGitCommit } from './git-commit-detect.mjs';
 
 function getStateDir(cwd) {
   const dir = join(cwd, '.omc', 'harness-state');
@@ -41,7 +42,7 @@ log('Hook started');
 
 const command = data?.tool_input?.command || '';
 
-if (!/(?:^|&&|\|\||;)\s*git\b[^|;]*\bcommit\b/.test(command)) {
+if (!isGitCommit(command)) {
   log('Not a git commit, allowing');
   process.exit(0);
 }
