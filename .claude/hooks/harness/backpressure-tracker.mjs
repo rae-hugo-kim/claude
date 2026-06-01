@@ -4,6 +4,7 @@
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync, unlinkSync, appendFileSync } from 'fs';
 import { join } from 'path';
+import { classifyVerification } from './backpressure-patterns.mjs';
 
 const input = readFileSync(0, 'utf-8');
 
@@ -32,24 +33,10 @@ log('Hook started');
 const command = data?.tool_input?.command || '';
 log(`Command: ${command}`);
 
-// Patterns for build/test/lint commands
-const buildPatterns = /npm run build|pnpm build|yarn build|tsc(?:\s|$)|make(?:\s|$)|cargo build|go build|mvn compile|gradle build/;
-const testPatterns = /npm test|pnpm test|yarn test|pytest|jest|vitest|cargo test|go test|mvn test|gradle test/;
-const lintPatterns = /npm run lint|pnpm lint|eslint|prettier|tsc --noEmit|cargo clippy|golangci-lint/;
-
-let isVerification = false;
-let verificationType = '';
-
-if (buildPatterns.test(command)) {
-  isVerification = true;
-  verificationType = 'build';
-} else if (testPatterns.test(command)) {
-  isVerification = true;
-  verificationType = 'test';
-} else if (lintPatterns.test(command)) {
-  isVerification = true;
-  verificationType = 'lint';
-}
+// Classify via the shared leading-token matcher (backpressure-patterns.mjs),
+// which only matches a verification command at the start of a shell segment —
+// not `echo "npm test"` or `grep -r "npm test"`.
+const { isVerification, type: verificationType } = classifyVerification(command);
 
 log(`Is verification: ${isVerification}, type: ${verificationType}`);
 
@@ -67,7 +54,9 @@ if (isVerification) {
     }
   }
 
-  // PostToolUse only fires on success, so this is always PASS
+  // PostToolUse fires only on success; a failing verification run routes to
+  // PostToolUseFailure (handled by backpressure-failure-tracker.mjs). So
+  // reaching here means the command's overall shell exit was 0 -> PASS.
   const run = {
     time: timeStr,
     type: verificationType,
