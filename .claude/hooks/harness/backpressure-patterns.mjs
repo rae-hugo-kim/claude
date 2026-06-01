@@ -8,31 +8,35 @@
 //
 // The command is split into top-level shell segments by a QUOTE-AWARE scanner
 // (splitTopLevel): operators && || ; | & inside single/double quotes or after a
-// backslash are NOT treated as delimiters. Each segment is then trimmed and
-// unwrapped of VAR=val / env / time / sudo / nice / npx / bash -c "..." /
-// a leading (subshell), and matched on its LEADING TOKEN anchored with (?=\s|$)
-// — never a raw substring. So `echo "x; npm test && ok"`, `grep "npm test" f`,
-// `npx tsc-alias`, and `make-release.sh` do NOT match, while `npm test`,
-// `npm t`, `CI=1 pnpm test:unit`, `time ./gradlew test`, `python -m pytest`,
-// and `cd x && npm run build` do.
+// backslash are NOT treated as delimiters. Each segment is trimmed and unwrapped
+// of VAR=val / env / time / sudo / nice / npx / a leading (subshell), then
+// matched on its LEADING TOKEN anchored with (?=\s|$) — never a raw substring.
+// `bash -c "<inner>"` / `sh -c "<inner>"` is classified by RECURSING on <inner>
+// so the inner command's own operators count toward reliability too. So
+// `echo "x; npm test && ok"`, `grep "npm test" f`, `npx tsc-alias`,
+// `make-release.sh` do NOT match, while `npm test`, `npm t`,
+// `CI=1 pnpm test:unit`, `time ./gradlew test`, `python -m pytest`,
+// `cd x && npm run build`, and `bash -c "npm test"` do.
 //
 // passReliable: whether a *success* should be trusted as a passing verification.
 // PostToolUse fires when the OVERALL shell exit is 0, which does NOT imply the
 // verification command itself passed when its exit is swallowed downstream:
 //   `npm test || true`   (|| swallows failure)
 //   `npm test; echo ok`  (;  overall exit is the last command's)
-//   `npm test | tee log` (|  pipeline tail's exit, no pipefail)
+//   `npm test | tee log` (|  pipeline-HEAD exit discarded, no pipefail)
 //   `npm test &`         (&  backgrounded; shell returns 0 immediately)
-// passReliable is true only when every operator AFTER the matched segment is
-// `&&` (reaching success then implies the verification passed). Otherwise the
-// success tracker must NOT record PASS (leaving status unverified is fail-safe).
-// Not handled (treated as unreliable / fail-safe): `set -o pipefail`, and a
-// verification reached only via command substitution.
+// and the same operators nested inside `bash -c "..."`. passReliable is true
+// only when every operator after the matched segment (at every recursion level)
+// is `&&`. Otherwise the success tracker must NOT record PASS (leaving status
+// unverified is fail-safe). Not handled (treated as unreliable / fail-safe):
+// `set -o pipefail`, command substitution, and recursion past MAX_DEPTH.
 //
 // Failure capture is intentionally LIBERAL (isVerification alone): for a chained
 // `npm test && deploy` that fails, the failure may be `deploy`, not the test —
 // recording FAIL over-blocks, which is fail-safe (operator re-runs a clean
 // verification), so we accept that misattribution rather than miss a real failure.
+
+const MAX_DEPTH = 5;
 
 const VERIFY = [
   // order matters: lint before build so `tsc --noEmit` labels as lint, not build.
@@ -68,6 +72,7 @@ function splitTopLevel(cmd) {
 }
 
 // Peel leading wrappers that don't change which program controls the exit.
+// (bash -c "..." is handled separately, by recursion, in classifySegment.)
 function unwrap(seg) {
   let s = seg.trim();
   if (s.startsWith('(')) s = s.replace(/^\(\s*/, '').replace(/\s*\)\s*$/, ''); // (subshell)
@@ -78,37 +83,49 @@ function unwrap(seg) {
     s = s.replace(/^env\s+(?:[A-Za-z_][A-Za-z0-9_]*=\S*\s+)*/, ''); // env VAR=val ...
     s = s.replace(/^(?:time|sudo|nice|ionice)\s+/, '');
     s = s.replace(/^npx\s+/, '');
-    const m = s.match(/^(?:bash|sh)\s+-c\s+(['"])([\s\S]*)\1\s*$/); // bash -c "..."
-    if (m) s = m[2].trim();
   } while (s !== prev);
   return s;
 }
 
-function classifySegment(seg) {
+// Classify a single segment -> { type, reliable } or null.
+// `reliable` reflects ONLY this segment's internal structure (e.g. operators
+// hidden inside a bash -c payload); the caller combines it with outer operators.
+function classifySegment(seg, depth) {
   const s = unwrap(seg);
-  for (const [type, re] of VERIFY) {
-    if (re.test(s)) return type;
+  const m = s.match(/^(?:bash|sh)\s+-c\s+(['"])([\s\S]*)\1\s*$/); // bash -c "<inner>"
+  if (m) {
+    if (depth >= MAX_DEPTH) return null; // pathological nesting -> fail-safe no-match
+    const inner = classify(m[2], depth + 1);
+    return inner.isVerification ? { type: inner.type, reliable: inner.passReliable } : null;
   }
-  return '';
+  for (const [type, re] of VERIFY) {
+    if (re.test(s)) return { type, reliable: true };
+  }
+  return null;
 }
 
-export function classifyVerification(command) {
+function classify(command, depth) {
   if (!command || typeof command !== 'string') {
     return { isVerification: false, type: '', passReliable: false };
   }
   const { segs, ops } = splitTopLevel(command);
-  let matchIdx = -1, type = '';
+  let matchIdx = -1, type = '', reliable = true;
   for (let i = 0; i < segs.length; i++) {
-    const t = classifySegment(segs[i]);
-    if (t) { matchIdx = i; type = t; break; }
+    const r = classifySegment(segs[i], depth);
+    if (r) { matchIdx = i; type = r.type; reliable = r.reliable; break; }
   }
   if (matchIdx === -1) {
     return { isVerification: false, type: '', passReliable: false };
   }
-  // Operators after the matched segment are ops[matchIdx..]. Reliable iff all '&&'.
-  let passReliable = true;
-  for (let j = matchIdx; j < ops.length; j++) {
-    if (ops[j] !== '&&') { passReliable = false; break; }
+  // Reliable iff this segment is internally reliable AND every operator after
+  // it (at this level) is `&&`.
+  let passReliable = reliable;
+  for (let j = matchIdx; j < ops.length && passReliable; j++) {
+    if (ops[j] !== '&&') passReliable = false;
   }
   return { isVerification: true, type, passReliable };
+}
+
+export function classifyVerification(command) {
+  return classify(command, 0);
 }
