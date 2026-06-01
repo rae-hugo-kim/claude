@@ -19,7 +19,7 @@ Install and keep the following available before running agent sessions in this r
 Repo references for those expectations:
 
 - `CLAUDE.md` integration table and assumptions.
-- `rules/change_control.md` (scope/context gates).
+- `rules/change_control.md` (context gate; scope drift via Surgical Changes + PR review).
 - `rules/verification_tests_and_evals.md` (acceptance/backpressure/architect verification).
 
 ## 2) First-run validation sequence (ordered)
@@ -68,10 +68,6 @@ If all checks pass, your environment is ready for normal work in this repo.
 - **Symptom:** Agent can claim done without meaningful verification evidence.
   - **Likely cause:** acceptance/architect stage not wired in current runtime.
   - **Quick fix:** Ensure your run mode includes architect verification and acceptance gating.
-
-- **Symptom:** Scope blocking is inconsistent.
-  - **Likely cause:** scope definition file/state is stale.
-  - **Quick fix:** refresh your active scope state (for example `current-scope.md` in your harness flow) and retry.
 
 - **Symptom:** Excessive friction after failures.
   - **Likely cause:** backpressure behavior is intentionally active.
