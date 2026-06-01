@@ -3,11 +3,11 @@
 #
 # DELIBERATE harness version bump — run ONCE after a harness change lands on main
 # (e.g. right after merging a harness PR), NOT as a per-commit hook. Bumps the
-# version a single time for everything that changed since the last harness/* tag,
-# so one logical change = one version (no per-commit churn).
+# version a single time for everything that changed since the last harness/* tag
+# reachable from HEAD, so one logical change = one version (no per-commit churn).
 #
-# Idempotent: if no harness asset changed since the last harness/* tag, it does
-# nothing. Safe to run repeatedly.
+# Idempotent: if no harness asset changed since that tag, it does nothing. Safe
+# to run repeatedly.
 #
 # What it does (unless --dry-run): updates harness-meta.json, makes a dedicated
 # `chore(harness): bump ...` commit (only the meta file), creates an annotated
@@ -17,15 +17,20 @@
 set -euo pipefail
 
 DRY_RUN=0
-[[ "${1:-}" == "--dry-run" ]] && DRY_RUN=1
+for arg in "$@"; do
+  case "$arg" in
+    --dry-run) DRY_RUN=1 ;;
+    *) echo "Unknown argument: $arg (only --dry-run is supported)" >&2; exit 2 ;;
+  esac
+done
 
 REPO_ROOT="$(git -C "$(dirname "$0")" rev-parse --show-toplevel)"
 META_FILE="$REPO_ROOT/.claude/hooks/harness/harness-meta.json"
 
 # Harness asset paths that warrant a version bump. Keep ALIGNED with the synced
 # set in scripts/harness-sync.sh (PATHS): a change to anything consumers receive
-# should produce a new version. (Excludes docs-build/docs-drift, which are not
-# synced to consumers.)
+# should produce a new version. Entries ending in "/" are directory prefixes;
+# others are exact file paths. (Excludes docs-build/docs-drift — not synced.)
 HARNESS_PATHS=(
   "rules/"
   "checklists/"
@@ -43,52 +48,79 @@ HARNESS_PATHS=(
   ".claude/skills/"
 )
 
-# --- 1. Establish the comparison base: the commit of the latest harness/* tag ---
-last_tag="$(git -C "$REPO_ROOT" tag -l 'harness/*' --sort=-v:refname | head -n1)"
+# Literal path match (no regex): exact for file entries, prefix for "dir/" entries.
+is_harness_path() {
+  local f="$1" p
+  for p in "${HARNESS_PATHS[@]}"; do
+    if [[ "$p" == */ ]]; then
+      [[ "$f" == "$p"* ]] && return 0
+    else
+      [[ "$f" == "$p" ]] && return 0
+    fi
+  done
+  return 1
+}
+
+# --- 1. Comparison base: the latest harness/* tag REACHABLE FROM HEAD ---
+# --merged HEAD avoids picking a higher tag that lives on a diverged branch.
+last_tag="$(git -C "$REPO_ROOT" tag -l 'harness/*' --merged HEAD --sort=-v:refname | head -n1)"
 if [[ -n "$last_tag" ]]; then
   base="$(git -C "$REPO_ROOT" rev-list -n1 "$last_tag")"
 else
-  base="$(git -C "$REPO_ROOT" rev-list --max-parents=0 HEAD | tail -n1)" # first commit
+  base="$(git -C "$REPO_ROOT" hash-object -t tree /dev/null)" # empty tree: count initial content
 fi
 
 # --- 2. Did any harness asset change since the base? ---
 changed_files="$(git -C "$REPO_ROOT" diff --name-only "$base" HEAD 2>/dev/null || true)"
 changed=0
-for pattern in "${HARNESS_PATHS[@]}"; do
-  if printf '%s\n' "$changed_files" | grep -q "^$pattern"; then
-    changed=1
-    break
-  fi
-done
+while IFS= read -r f; do
+  [[ -z "$f" ]] && continue
+  if is_harness_path "$f"; then changed=1; break; fi
+done <<< "$changed_files"
 
 if [[ $changed -eq 0 ]]; then
-  echo "Harness unchanged since ${last_tag:-the first commit}; nothing to bump."
+  echo "Harness unchanged since ${last_tag:-the initial tree}; nothing to bump."
   exit 0
 fi
 
-# --- 3. Compute the new version (year-rolling sequence) ---
-current_version="$(grep '"version"' "$META_FILE" | sed 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/')"
-current_year="${current_version%%.*}"
-current_seq="${current_version##*.}"
+# --- 3. Compute the new version from the BASE TAG (not the meta file) ---
+# Sequencing off the tag keeps the version monotonic with the tags even if
+# harness-meta.json was reverted/rewritten (e.g. by harness-sync). Fall back to
+# the meta version only when there is no reachable tag.
+if [[ -n "$last_tag" ]]; then
+  base_version="${last_tag#harness/}"
+else
+  base_version="$(grep '"version"' "$META_FILE" | sed 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/')"
+fi
+base_year="${base_version%%.*}"
+base_seq="${base_version##*.}"
 this_year="$(date +%Y)"
-if [[ "$this_year" != "$current_year" ]]; then
+if [[ "$this_year" != "$base_year" ]]; then
   new_version="${this_year}.1"
 else
-  new_version="${current_year}.$((current_seq + 1))"
+  new_version="${base_year}.$((base_seq + 1))"
 fi
 tag_name="harness/${new_version}"
 today="$(date +%Y-%m-%d)"
 
+# --- 3a. Pre-flight: never mutate if the target tag already exists ---
+if git -C "$REPO_ROOT" rev-parse -q --verify "refs/tags/${tag_name}" >/dev/null 2>&1; then
+  echo "Tag ${tag_name} already exists; refusing to bump (resolve version drift first)." >&2
+  exit 1
+fi
+
 if [[ $DRY_RUN -eq 1 ]]; then
   echo "--- Dry run ---"
-  echo "Base tag:        ${last_tag:-<none>} (${base:0:9})"
+  echo "Base:            ${last_tag:-<empty tree>} (${base:0:9})"
   echo "Changed harness files since base:"
-  printf '%s\n' "$changed_files" | grep -E "$(IFS='|'; echo "^(${HARNESS_PATHS[*]})")" | sed 's/^/  /' || true
-  echo "Would bump:      ${current_version} -> ${new_version} (tag: ${tag_name})"
+  while IFS= read -r f; do
+    [[ -n "$f" ]] && is_harness_path "$f" && echo "  $f"
+  done <<< "$changed_files"
+  echo "Would bump:      ${base_version} -> ${new_version} (tag: ${tag_name})"
   exit 0
 fi
 
-# --- 4. Update harness-meta.json ---
+# --- 4. Update harness-meta.json (version always increments -> never an empty commit) ---
 sed -i \
   -e "s/\"version\"[[:space:]]*:[[:space:]]*\"[^\"]*\"/\"version\": \"${new_version}\"/" \
   -e "s/\"updated\"[[:space:]]*:[[:space:]]*\"[^\"]*\"/\"updated\": \"${today}\"/" \
@@ -101,7 +133,7 @@ git -C "$REPO_ROOT" commit -m "chore(harness): bump version to ${new_version}" -
 # --- 6. Annotated tag (so `git push --follow-tags` picks it up) ---
 git -C "$REPO_ROOT" tag -a "$tag_name" -m "harness ${new_version}"
 
-echo "harness version bumped: ${current_version} -> ${new_version} (tag: ${tag_name})"
+echo "harness version bumped: ${base_version} -> ${new_version} (tag: ${tag_name})"
 echo "Now push:  git push --follow-tags"
 
 # --- 7. Append audit-score row (best-effort; failure must not block) ---

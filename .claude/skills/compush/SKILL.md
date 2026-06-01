@@ -85,7 +85,7 @@ git commit -m "<message>"
 git push --follow-tags
 ```
 
-`--follow-tags` ensures any annotated tags created by hooks (e.g., harness version bump) are pushed with the branch in one operation.
+`--follow-tags` ensures annotated tags (e.g., a deliberate harness version bump via `scripts/harness-version-bump.sh`) are pushed with the branch in one operation.
 
 ### 7. Output
 

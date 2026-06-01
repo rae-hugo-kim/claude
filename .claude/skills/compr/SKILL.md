@@ -86,7 +86,7 @@ git push -u --follow-tags origin <branch-name>
 gh pr create --base <target> --head <branch> --title "<title>" --body "<body>"
 ```
 
-`--follow-tags` ensures any annotated tags created by hooks (e.g., harness version bump) are pushed with the branch.
+`--follow-tags` ensures annotated tags (e.g., a deliberate harness version bump via `scripts/harness-version-bump.sh`) are pushed with the branch.
 
 **PR body format**:
 ```markdown
