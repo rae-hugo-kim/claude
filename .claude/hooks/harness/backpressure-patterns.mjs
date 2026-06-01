@@ -51,21 +51,28 @@ const VERIFY = [
 function splitTopLevel(cmd) {
   const segs = [], ops = [];
   let cur = '', i = 0, q = null; // q = "'" or '"' while inside that quote
+  let prevGt = false;            // last emitted char was an UNescaped, UNquoted top-level `>`
   while (i < cmd.length) {
     const c = cmd[i], n = cmd[i + 1];
-    if (q === "'") { cur += c; if (c === "'") q = null; i++; continue; }
+    if (q === "'") { cur += c; if (c === "'") q = null; prevGt = false; i++; continue; }
     if (q === '"') {
-      if (c === '\\' && n !== undefined) { cur += c + n; i += 2; continue; }
-      cur += c; if (c === '"') q = null; i++; continue;
+      if (c === '\\' && n !== undefined) { cur += c + n; prevGt = false; i += 2; continue; }
+      cur += c; if (c === '"') q = null; prevGt = false; i++; continue;
     }
-    if (c === "'" || c === '"') { q = c; cur += c; i++; continue; }
-    if (c === '\\' && n !== undefined) { cur += c + n; i += 2; continue; }
-    if (c === '&' && n === '&') { segs.push(cur); ops.push('&&'); cur = ''; i += 2; continue; }
-    if (c === '|' && n === '|') { segs.push(cur); ops.push('||'); cur = ''; i += 2; continue; }
-    if (c === ';') { segs.push(cur); ops.push(';'); cur = ''; i++; continue; }
-    if (c === '|') { segs.push(cur); ops.push('|'); cur = ''; i++; continue; }
-    if (c === '&') { segs.push(cur); ops.push('&'); cur = ''; i++; continue; }
-    cur += c; i++;
+    if (c === "'" || c === '"') { q = c; cur += c; prevGt = false; i++; continue; }
+    if (c === '\\' && n !== undefined) { cur += c + n; prevGt = false; i += 2; continue; }
+    if (c === '&' && n === '&') { segs.push(cur); ops.push('&&'); cur = ''; prevGt = false; i += 2; continue; }
+    if (c === '|' && n === '|') { segs.push(cur); ops.push('||'); cur = ''; prevGt = false; i += 2; continue; }
+    if (c === ';') { segs.push(cur); ops.push(';'); cur = ''; prevGt = false; i++; continue; }
+    if (c === '|') { segs.push(cur); ops.push('|'); cur = ''; prevGt = false; i++; continue; }
+    // A `&` that is part of a redirection (`2>&1`, `>&2`, `&>file`) is NOT a
+    // backgrounding operator — keep it in the segment so it doesn't break an
+    // otherwise-reliable `&&` chain (e.g. `npm test 2>&1 && deploy`). Decide on the
+    // emitted-token flag (not cur.endsWith('>')) so an escaped/quoted `\>` is not
+    // mistaken for a redirection (which would risk recording a false PASS).
+    if (c === '&' && (prevGt || n === '>')) { cur += c; prevGt = false; i++; continue; }
+    if (c === '&') { segs.push(cur); ops.push('&'); cur = ''; prevGt = false; i++; continue; }
+    cur += c; prevGt = (c === '>'); i++;
   }
   segs.push(cur);
   return { segs, ops };
