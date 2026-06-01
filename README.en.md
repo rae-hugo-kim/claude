@@ -129,15 +129,17 @@ Automated guardrails that activate during the kickoff → startdev flow:
 
 This repository serves as the **harness source** that other projects sync from.
 
-### This repo (source) — automatic version bump
+### This repo (source) — deliberate version bump
 
-When `rules/`, `checklists/`, `.claude/`, `CLAUDE.md`, etc. change, `harness-meta.json` is bumped and a `harness/YYYY.N` tag is created. Activate the hook once after cloning:
+When harness assets (`rules/`, `checklists/`, `.claude/`, `CLAUDE.md`, `scripts/harness-*.sh`, `templates/`, …) land on main, bump the version **once, after the merge**:
 
 ```bash
-git config core.hooksPath .githooks
+bash scripts/harness-version-bump.sh --dry-run   # preview what would bump to .N+1
+bash scripts/harness-version-bump.sh             # bump once for everything since the last harness/* tag, + tag
+git push --follow-tags
 ```
 
-After that, `git commit` automatically calls `scripts/harness-version-bump.sh`. Commits that touch only non-harness files are left alone.
+It bumps a single time only when a harness asset changed since the last `harness/*` tag (idempotent — a no-op otherwise), so one feature = one version even across many commits. (Previously a post-commit hook auto-bumped on every commit, producing several versions per feature; `.githooks/post-commit` is now a no-op stub.)
 
 ### Other projects (consumer) — `/harness-check`
 
@@ -153,7 +155,7 @@ Projects created with `/init` or `/bootstrap` get a SessionStart hook that check
 
 ### Audit history (issue #11)
 
-Every `harness/*` tag fire (via `scripts/harness-version-bump.sh`) automatically appends one JSON row to `.omc/state/harness-scores.jsonl`. Series are separated by the `rubric_version` field — when scoring rules change, the new series starts fresh.
+Each time you bump with `scripts/harness-version-bump.sh`, one JSON row is appended to `.omc/state/harness-scores.jsonl`. Series are separated by the `rubric_version` field — when scoring rules change, the new series starts fresh.
 
 **rubric_version bump workflow** (when scoring rules change):
 1. Increment the `RUBRIC_VERSION` constant at the top of `scripts/harness-audit.sh`

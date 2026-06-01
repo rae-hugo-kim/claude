@@ -141,11 +141,11 @@ flowchart LR
 
 ### 2.5 릴리스 자동화 (Git hooks)
 
-Claude Code 훅이 아닌 **Git 자체 훅**으로 동작한다.
+Claude Code 훅이 아니라 **수동/CLI로 실행**한다 (`.githooks/post-commit`은 이제 no-op stub — 예전엔 커밋마다 자동 범프해 churn 발생).
 
 | 스크립트 | 트리거 | 역할 |
 |----------|--------|------|
-| **harness-version-bump.sh** | post-commit | 하네스 파일 변경 감지 → 버전 범프 → 태그 생성 |
+| **harness-version-bump.sh** | 수동 (머지 후 1회) | 마지막 `harness/*` 태그 이후 하네스 변경 시 1회 버전 범프 + 태그 (멱등, `--dry-run` 지원) |
 | **harness-sync.sh** | /harness-check 수동 | 리모트에서 최신 하네스 오버라이트 |
 
 ## 3. 상태 흐름도 (전체 세션 라이프사이클)
@@ -212,7 +212,7 @@ sequenceDiagram
 | 수락 기준 미달 커밋 | acceptance-gate | **Hard block** (exit 2) |
 | 새 작업 시 킥오프 누락 | kickoff-detector | Advisory (non-blocking) |
 | 하네스 버전 드리프트 | harness-version-check | Advisory (non-blocking) |
-| 하네스 파일 버전 관리 | harness-version-bump.sh | Automated (post-commit) |
+| 하네스 파일 버전 관리 | harness-version-bump.sh | Manual (머지 후 1회, deliberate) |
 
 ### 4.2 커버되지 않는 영역 (Gap Analysis)
 

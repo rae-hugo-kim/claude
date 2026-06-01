@@ -129,15 +129,17 @@ kickoff → startdev 흐름에서 자동으로 작동하는 장치들:
 
 이 저장소는 다른 프로젝트들이 동기화 대상으로 삼는 **하네스 원본**입니다.
 
-### 이 저장소 (source) — 자동 버전 bump
+### 이 저장소 (source) — 버전 bump (의도적 1회)
 
-`rules/`, `checklists/`, `.claude/`, `CLAUDE.md` 등이 변경되면 `harness-meta.json` 버전이 올라가고 `harness/YYYY.N` 태그가 생성됩니다. 클론 직후 한 번만 활성화:
+`rules/`, `checklists/`, `.claude/`, `CLAUDE.md`, `scripts/harness-*.sh`, `templates/` 등 하네스 자산 변경이 main에 머지되면, **머지 후 한 번** 버전을 올립니다:
 
 ```bash
-git config core.hooksPath .githooks
+bash scripts/harness-version-bump.sh --dry-run   # 무엇이 .N+1로 올라갈지 미리 보기
+bash scripts/harness-version-bump.sh             # 마지막 harness/* 태그 이후 변경분에 대해 1회 bump + 태그
+git push --follow-tags
 ```
 
-이후 `git commit`이 `scripts/harness-version-bump.sh`를 자동 호출합니다. 하네스 외 파일만 바꾼 커밋은 건드리지 않습니다.
+마지막 `harness/*` 태그 이후 하네스 자산이 바뀐 경우에만 1회 올라가며(멱등 — 변경 없으면 no-op), 한 기능에 커밋이 여러 개여도 버전은 하나입니다. (예전엔 post-commit 훅이 커밋마다 자동 bump해 한 기능에 버전이 여러 개 생기는 churn이 있었습니다. `.githooks/post-commit`은 이제 no-op stub입니다.)
 
 ### 다른 프로젝트 (consumer) — `/harness-check`
 
@@ -153,7 +155,7 @@ git config core.hooksPath .githooks
 
 ### Audit history (issue #11)
 
-`harness/*` 태그가 발사될 때마다 (`scripts/harness-version-bump.sh` 경유) audit 결과가 `.omc/state/harness-scores.jsonl`에 한 줄씩 자동 누적됩니다. 시리즈는 `rubric_version` 필드로 구분되어, 채점 룰이 바뀌면 이전 시리즈와 분리됩니다.
+`scripts/harness-version-bump.sh`로 버전을 올릴 때마다 audit 결과가 `.omc/state/harness-scores.jsonl`에 한 줄씩 누적됩니다. 시리즈는 `rubric_version` 필드로 구분되어, 채점 룰이 바뀌면 이전 시리즈와 분리됩니다.
 
 **rubric_version bump workflow** (채점 룰 변경 시):
 1. `scripts/harness-audit.sh` 상단의 `RUBRIC_VERSION` 상수를 1 증가

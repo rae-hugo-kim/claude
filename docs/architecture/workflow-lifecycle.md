@@ -49,8 +49,8 @@ flowchart TD
     RG -->|리뷰 PASS| COMMIT_OK[✅ 커밋 성공]
     SKIP_RV --> COMMIT_OK
     
-    COMMIT_OK --> BUMP[harness-version-bump<br/>하네스 파일 변경 시 자동]
-    BUMP --> DONE([완료])
+    COMMIT_OK --> DONE([완료])
+    DONE -.->|머지 후 수동 1회, 자동 아님| BUMP[harness-version-bump<br/>버전 범프 + 태그]
 
     BLOCK_SCOPE --> IMPL
     BLOCK_CTX --> IMPL
@@ -191,8 +191,8 @@ git commit 시도
 
   전부 통과하면 커밋 성공
 
-  → [post-commit] harness-version-bump.sh
-    → 하네스 파일이 변경됐으면 버전 범프 + 태그 생성
+  → [머지 후 수동 1회] bash scripts/harness-version-bump.sh
+    → 마지막 harness/* 태그 이후 하네스 변경이 있으면 버전 범프 + 태그 (멱등; 자동 아님)
 ```
 
 ### 2.7 완료 보고
