@@ -11,7 +11,6 @@ Install and keep the following available before running agent sessions in this r
 - A working **Codex/Claude Code CLI environment** (the tool you use to run agent tasks).
 - Global **oh-my-claudecode harness** integration enabled.
 - Global hooks active for:
-  - `scope-gate` (scope enforcement)
   - `context-gate` (pre-edit read enforcement)
   - `acceptance-gate` (completion/test gate)
   - `backpressure-gate` (failure throttling)
@@ -54,7 +53,6 @@ Run these checks in order from repo root:
 
 5. **Behavior smoke test (manual, required once per machine/profile)**
    - In a low-risk scratch change, attempt each of the following in your normal agent workflow:
-     - Edit outside allowed scope -> should be blocked by `scope-gate`.
      - Edit a file before reading it -> should be blocked by `context-gate`.
      - Claim completion without required verification evidence -> should be blocked by acceptance flow.
      - Repeatedly fail validations -> observe slower progression/backpressure behavior.
@@ -87,7 +85,6 @@ Use this sample task:
 
 Expected enforcement during execution:
 
-- If the agent edits `rules/*` without scope, `scope-gate` should block.
 - If the agent edits `claudedocs/agreements.md` before reading it, `context-gate` should block.
 - Completion report should include concrete verification (at minimum deterministic file diff/inspection step).
 - If validations fail repeatedly, backpressure behavior should appear.
@@ -102,7 +99,7 @@ Suggested snippet:
 ### Environment Status (oh-my-claudecode)
 - CLI/runtime: <name + version>
 - Harness active: yes/no
-- Hooks observed: scope-gate=<ok/fail>, context-gate=<ok/fail>, acceptance-gate=<ok/fail>, backpressure-gate=<ok/fail>
+- Hooks observed: context-gate=<ok/fail>, acceptance-gate=<ok/fail>, backpressure-gate=<ok/fail>
 - Multi-agent orchestration active: yes/no
 - Repro command/task: <what you ran>
 - Observed behavior: <what happened>

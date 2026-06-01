@@ -50,7 +50,7 @@
 |------|------|------|
 | 1 (현재) | 수동 관리, kickoff 때 리마인더 | 기본 |
 | 2 | seed.yaml `references`에 glossary.yaml 링크 | seed에서 참조 필요 시 |
-| 3 | scope-gate가 glossary alias를 정규화에 활용 | 용어 불일치 블록 필요 시 |
+| 3 | kickoff 스킬이 용어 추가 제안 | 반복적 용어 추가 발생 시 |
 | 4 | kickoff 스킬이 자동으로 glossary 갱신 제안 | 반복적 용어 추가 발생 시 |
 
 ## YAML 스키마

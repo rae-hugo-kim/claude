@@ -6,11 +6,6 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node .claude/hooks/harness/scope-gate.mjs",
-            "timeout": 3
-          },
-          {
-            "type": "command",
             "command": "node .claude/hooks/harness/context-gate.mjs",
             "timeout": 3
           }

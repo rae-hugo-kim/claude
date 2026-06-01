@@ -19,11 +19,6 @@ terms:
     meaning: "seed의 4차원 품질 판정 (goal/constraint/success/context clarity)"
     context: "docs/harness/rubric-report.md"
 
-  - term: "scope-gate"
-    aliases: ["스코프 게이트"]
-    meaning: "out_of_scope 경로 편집을 차단하는 PreToolUse 훅"
-    context: "hooks/harness/scope-gate.mjs"
-
   - term: "acceptance-gate"
     aliases: ["수락 게이트", "AC gate"]
     meaning: "수락 기준 미충족 시 git commit을 차단하는 PreToolUse 훅"

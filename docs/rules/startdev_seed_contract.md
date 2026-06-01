@@ -54,8 +54,8 @@ docs/harness/seed.yaml
 - 최종 완료 판단의 기준
 
 ### `out_of_scope`
-- scope gate 입력
-- "하지 말아야 할 일" 체크
+- 이번 작업에서 하지 않는 일 (prose). scope drift 방지용
+- 에이전트가 구현 중 다시 읽어 자체 제한 (자동 차단 게이트 아님 — scope-gate 폐기됨)
 
 ### `assumptions`
 - anti-hallucination 검토 입력

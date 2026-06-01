@@ -69,7 +69,6 @@ This repo assumes **oh-my-claudecode** is active globally. The harness hooks and
 | What | How | Hook Location |
 |------|-----|---------------|
 | Code changes | Delegated to executor agents | N/A (global rule) |
-| Scope enforcement | `scope-gate` hook | `.claude/hooks/harness/` |
 | Pre-edit file read | `context-gate` + `read-tracker` hooks | `.claude/hooks/harness/` |
 | Completion verification | Architect agent | N/A (global rule) |
 | Backpressure on failures | `backpressure-gate` + `backpressure-tracker` hooks | `.claude/hooks/harness/` |
@@ -84,19 +83,17 @@ All hooks are registered in `.claude/settings.json` and included in the repo.
 
 Each hook enforces a specific gate:
 
-1. **`scope-gate`** (PreToolUse: Edit/Write) — blocks edits to out-of-scope paths. Reads `docs/harness/seed.yaml` (out_of_scope list) or `docs/harness/current-scope.md`. Logs to `.omc/harness-state/hook-debug.log`.
-2. **`context-gate`** (PreToolUse: Edit/Write) — blocks edits to files that have not been read in the current session. Paired with `read-tracker`.
-3. **`read-tracker`** (PostToolUse: Read) — records file reads so `context-gate` knows what has been seen. State stored in `.omc/harness-state/read-log.txt`.
-4. **`acceptance-gate`** (PreToolUse: Bash) — blocks commits with unmet acceptance criteria. Reads `docs/harness/current-scope.md` checkboxes and `docs/harness/seed.yaml`.
-5. **`backpressure-gate`** (PreToolUse: Bash) — blocks commits if a previous build/test/lint run failed. Reads `.omc/harness-state/backpressure-status`.
-6. **`backpressure-tracker`** (PostToolUse: Bash) — records build/test/lint outcomes so `backpressure-gate` has current state.
-7. **`kickoff-detector`** (UserPromptSubmit) — reminds the agent to run a kickoff for new work. Suppressed by creating `docs/harness/kickoff-done`.
+1. **`context-gate`** (PreToolUse: Edit/Write) — blocks edits to files that have not been read in the current session. Paired with `read-tracker`.
+2. **`read-tracker`** (PostToolUse: Read) — records file reads so `context-gate` knows what has been seen. State stored in `.omc/harness-state/read-log.txt`.
+3. **`acceptance-gate`** (PreToolUse: Bash) — blocks commits with unmet acceptance criteria. Reads `docs/harness/current-scope.md` checkboxes and `docs/harness/seed.yaml`.
+4. **`backpressure-gate`** (PreToolUse: Bash) — blocks commits if a previous build/test/lint run failed. Reads `.omc/harness-state/backpressure-status`.
+5. **`backpressure-tracker`** (PostToolUse: Bash) — records build/test/lint outcomes so `backpressure-gate` has current state.
+6. **`kickoff-detector`** (UserPromptSubmit) — reminds the agent to run a kickoff for new work. Suppressed by creating `docs/harness/kickoff-done`.
 
 #### Fallback When a Gate is Unavailable
 
 If a required gate is missing, do **not** claim automated harness compliance for that gate. Instead, apply manual downgrade:
 
-- Missing `scope-gate` → manually enumerate in-scope files before edits and re-check before commit.
 - Missing `context-gate` → manually record files read before each edit batch.
 - Missing `acceptance-gate` → provide explicit evidence section: commands, outputs, file citations.
 - Missing `backpressure-gate` → after any failed verification, halt feature work until failure is resolved.

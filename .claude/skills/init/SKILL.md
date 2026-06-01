@@ -151,7 +151,7 @@ git push
 
 ### Included
 - 8 skills: bootstrap, init, kickoff, startdev, sum, compr, compush, tidy
-- 7 hooks: scope-gate, context-gate, acceptance-gate, backpressure-gate, kickoff-detector, read-tracker, backpressure-tracker
+- 6 hooks: context-gate, acceptance-gate, backpressure-gate, kickoff-detector, read-tracker, backpressure-tracker
 - Rules, templates, glossary
 ```
 
