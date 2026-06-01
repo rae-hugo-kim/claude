@@ -36,11 +36,18 @@ log(`Command: ${command}`);
 // Classify via the shared leading-token matcher (backpressure-patterns.mjs),
 // which only matches a verification command at the start of a shell segment —
 // not `echo "npm test"` or `grep -r "npm test"`.
-const { isVerification, type: verificationType } = classifyVerification(command);
+const { isVerification, type: verificationType, passReliable } = classifyVerification(command);
 
-log(`Is verification: ${isVerification}, type: ${verificationType}`);
+log(`Is verification: ${isVerification}, type: ${verificationType}, passReliable: ${passReliable}`);
 
-if (isVerification) {
+// Only record PASS when the verification command controls the overall exit
+// (passReliable). A piped / `|| true` / `;`-chained success can mask a real
+// failure, so skip rather than record a false PASS that would clear protection.
+if (isVerification && !passReliable) {
+  log('Verification matched but exit unreliable (piped / || / ;), not recording PASS');
+}
+
+if (isVerification && passReliable) {
   const statusFile = join(stateDir, 'backpressure-status');
   const now = new Date();
   const timeStr = now.toTimeString().substring(0, 5);

@@ -32,7 +32,9 @@ function log(msg) {
   appendFileSync(logFile, `[${new Date().toISOString()}] backpressure-failure-tracker: ${msg}\n`);
 }
 
-const command = data?.tool_input?.command || data?.toolInput?.command || '';
+const command = data?.tool_input?.command || '';
+// Failure capture is liberal: any matched verification segment -> FAIL
+// (over-blocking on a chained `verify && other` failure is fail-safe).
 const { isVerification, type } = classifyVerification(command);
 log(`Command: ${command}`);
 log(`Is verification: ${isVerification}, type: ${type}`);
