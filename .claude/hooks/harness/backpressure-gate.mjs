@@ -7,6 +7,7 @@
 import { readFileSync, existsSync, appendFileSync, mkdirSync, unlinkSync } from 'fs';
 import { join } from 'path';
 import { assessRisk } from './risk-assess.mjs';
+import { isGitCommit } from './git-commit-detect.mjs';
 
 const input = readFileSync(0, 'utf-8');
 
@@ -34,7 +35,7 @@ log('Hook started');
 const command = data?.tool_input?.command || '';
 log(`Command: ${command}`);
 
-if (!command.match(/(?:^|&&|\|\||;)\s*git\b[^|;]*\bcommit\b/)) {
+if (!isGitCommit(command)) {
   log('Not a git commit, allowing');
   process.exit(0);
 }
