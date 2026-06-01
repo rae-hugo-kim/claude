@@ -84,6 +84,18 @@
         ]
       }
     ],
+    "PostToolUseFailure": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/harness/backpressure-failure-tracker.mjs",
+            "timeout": 3
+          }
+        ]
+      }
+    ],
     "UserPromptSubmit": [
       {
         "hooks": [
