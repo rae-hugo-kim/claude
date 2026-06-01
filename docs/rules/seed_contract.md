@@ -6,7 +6,7 @@
 이 문서의 목표는 다음 두 가지다.
 
 - 사람이 읽는 요약과 별개로, 하네스가 기계적으로 해석 가능한 명세 형식을 고정한다.
-- `startdev`, 검증, scope gate, anti-hallucination 규칙이 동일한 기준을 보도록 만든다.
+- `startdev`, 검증, scope drift 점검(Surgical Changes·PR 리뷰), anti-hallucination 규칙이 동일한 기준을 보도록 만든다.
 
 ## Scope
 이 계약은 `docs/harness/seed.yaml`에 적용된다.

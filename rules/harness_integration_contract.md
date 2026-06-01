@@ -11,50 +11,45 @@ Runtime state is stored in `.omc/harness-state/` (project-local, gitignored).
 
 The following controls are required when harness is available:
 
-1. `scope-gate` hook — blocks edits to out-of-scope paths (PreToolUse: Edit|Write)
-2. `context-gate` hook — blocks edits to unread files (PreToolUse: Edit|Write)
-3. `read-tracker` hook — records file reads for context-gate (PostToolUse: Read)
-4. `acceptance-gate` hook — blocks commits with unmet acceptance criteria (PreToolUse: Bash)
-5. `backpressure-gate` hook — blocks commits if build/test/lint failed (PreToolUse: Bash)
-6. `backpressure-tracker` hook — records build/test/lint results (PostToolUse: Bash)
-7. `kickoff-detector` hook — reminds about kickoff for new work (UserPromptSubmit)
-8. Architect verification — independent completion verification (oh-my-claudecode agent)
+1. `context-gate` hook — blocks edits to unread files (PreToolUse: Edit|Write)
+2. `read-tracker` hook — records file reads for context-gate (PostToolUse: Read)
+3. `acceptance-gate` hook — blocks commits with unmet acceptance criteria (PreToolUse: Bash)
+4. `backpressure-gate` hook — blocks commits if build/test/lint failed (PreToolUse: Bash)
+5. `backpressure-tracker` hook — records build/test/lint results (PostToolUse: Bash)
+6. `kickoff-detector` hook — reminds about kickoff for new work (UserPromptSubmit)
+7. Architect verification — independent completion verification (oh-my-claudecode agent)
+
+> Scope drift is no longer hook-enforced (scope-gate retired). It is handled by the CLAUDE.md "Surgical Changes" rule + PR review; `out_of_scope` in seed.yaml is advisory prose the agent reads.
 
 ## Gate Verification Requirements
 
 Use concrete checks, not assumptions.
 
-### 1) `scope-gate`
-
-- File: `.claude/hooks/harness/scope-gate.mjs`
-- Log: `.omc/harness-state/hook-debug.log`
-- Reads: `docs/harness/seed.yaml` (out_of_scope) or `docs/harness/current-scope.md`
-
-### 2) `context-gate` + `read-tracker`
+### 1) `context-gate` + `read-tracker`
 
 - Files: `.claude/hooks/harness/context-gate.mjs`, `.claude/hooks/harness/read-tracker.mjs`
 - Log: `.omc/harness-state/hook-debug.log`
 - State: `.omc/harness-state/read-log.txt`
 
-### 3) `acceptance-gate`
+### 2) `acceptance-gate`
 
 - File: `.claude/hooks/harness/acceptance-gate.mjs`
 - Log: `.omc/harness-state/hook-debug.log`
 - Reads: `docs/harness/current-scope.md` (checkboxes), `docs/harness/seed.yaml` (AC), `docs/harness/acceptance-done` (override flag)
 
-### 4) `backpressure-gate` + `backpressure-tracker`
+### 3) `backpressure-gate` + `backpressure-tracker`
 
 - Files: `.claude/hooks/harness/backpressure-gate.mjs`, `.claude/hooks/harness/backpressure-tracker.mjs`
 - Log: `.omc/harness-state/hook-debug.log`
 - State: `.omc/harness-state/backpressure-status`, `.omc/harness-state/test-history.json`
 - **Known limitation**: `backpressure-tracker` runs on PostToolUse (success only). Claude Code does not invoke PostToolUse hooks on tool failure, so failed build/test/lint results are not recorded. `backpressure-gate` can only verify the presence of recent success, not detect failures directly.
 
-### 5) `kickoff-detector`
+### 4) `kickoff-detector`
 
 - File: `.claude/hooks/harness/kickoff-detector.mjs`
 - Reads: `docs/harness/kickoff-done` (suppresses reminder if exists)
 
-### 6) Architect verification + Completion Attack Gate
+### 5) Architect verification + Completion Attack Gate
 
 - Provided by oh-my-claudecode `architect` agent
 - Not a file hook — invoked via agent delegation
@@ -69,11 +64,11 @@ Use concrete checks, not assumptions.
 1. Confirm hooks directory exists: `test -d .claude/hooks/harness && echo hooks_ok`
 2. Confirm all hook files are present:
    ```bash
-   for h in scope-gate context-gate read-tracker acceptance-gate backpressure-gate backpressure-tracker kickoff-detector; do
+   for h in context-gate read-tracker acceptance-gate backpressure-gate backpressure-tracker kickoff-detector; do
      test -f ".claude/hooks/harness/$h.mjs" && echo "$h: ok" || echo "$h: MISSING"
    done
    ```
-3. Confirm settings.json registers hooks: `cat .claude/settings.json | grep -c "hooks/harness"` (should be 7)
+3. Confirm settings.json registers the harness hooks: `grep -c "hooks/harness" .claude/settings.json` (non-zero; the exact count grows as gates are added — do not assert a constant)
 4. Confirm Architect agent is available via oh-my-claudecode
 5. Record harness status in your working notes and final PR report
 
@@ -81,9 +76,6 @@ Use concrete checks, not assumptions.
 
 If any required gate is unavailable, do not claim fully automated harness compliance for that gate. Apply this downgrade policy:
 
-- Missing `scope-gate`:
-  - Downgrade from **MUST (automated scope enforcement)** to **manual scope checklist MUST**.
-  - Manually enumerate in-scope files before edits and re-check before commit.
 - Missing `context-gate`:
   - Downgrade from **MUST (automated pre-read enforcement)** to **manual pre-edit read checklist MUST**.
   - Record files read before each edit batch.
@@ -120,7 +112,6 @@ Use this in PR descriptions or completion reports:
 
 ```md
 ### Harness Verification
-- scope-gate: [active | unavailable->manual] (evidence: `<command/log snippet>`)
 - context-gate: [active | unavailable->manual] (evidence: `<command/log snippet>`)
 - acceptance-gate: [active | unavailable->manual] (evidence: `<command/log snippet>`)
 - backpressure-gate: [active | unavailable->manual] (evidence: `<command/log snippet>`)

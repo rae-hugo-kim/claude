@@ -111,7 +111,6 @@ Creates a new GitHub repository based on this template.
 Automated guardrails that activate during the kickoff → startdev flow:
 
 - **seed.yaml** — Structured kickoff output (goals, constraints, AC, risks). If a brainstorm capture was adopted, its path lands in `references`
-- **scope-gate hook** — Blocks edits to out-of-scope paths
 - **context-gate + read-tracker hooks** — Prevents editing unread files
 - **acceptance-gate hook** — Blocks commits with unmet acceptance criteria
 - **backpressure hooks** — Suppresses commits without verification (gate + tracker + invalidator)

@@ -111,7 +111,6 @@ OMC, RTK, 범용 MCP 서버(context7, serena, exa, browser-tools), docs 뷰어 �
 kickoff → startdev 흐름에서 자동으로 작동하는 장치들:
 
 - **seed.yaml** — 킥오프 결과를 구조화 (목표, 제약, 수락 기준, 리스크). brainstorm 캡처를 사용했다면 `references`에 경로 자동 추가
-- **scope-gate 훅** — 스코프 밖 파일 편집 차단
 - **context-gate + read-tracker 훅** — 읽지 않은 파일 수정 방지
 - **acceptance-gate 훅** — 수락 기준 미충족 시 커밋 차단
 - **backpressure 훅** — 검증 없는 커밋 억제 (gate + tracker + invalidator)

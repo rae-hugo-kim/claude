@@ -23,7 +23,6 @@ This repo assumes **oh-my-claudecode** is active globally. The following are enf
 | What | How | Hook Location |
 |------|-----|---------------|
 | Code changes | Delegated to executor agents | N/A (global rule) |
-| Scope enforcement | `scope-gate` hook | `.claude/hooks/harness/` |
 | Pre-edit file read | `context-gate` + `read-tracker` hooks | `.claude/hooks/harness/` |
 | Completion verification | Architect agent | N/A (global rule) |
 | Backpressure on failures | `backpressure-gate` + `backpressure-tracker` hooks | `.claude/hooks/harness/` |

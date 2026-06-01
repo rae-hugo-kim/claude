@@ -17,9 +17,7 @@ flowchart TD
     PLAN --> IMPL[구현 단계]
     
     IMPL --> EDIT{Edit/Write 시도}
-    EDIT --> SG{scope-gate<br/>범위 내인가?}
-    SG -->|OUT OF SCOPE| BLOCK_SCOPE[❌ 차단<br/>범위 이탈]
-    SG -->|IN SCOPE| CG{context-gate<br/>파일 열람했나?}
+    EDIT --> CG{context-gate<br/>파일 열람했나?}
     CG -->|미열람| BLOCK_CTX[❌ 차단<br/>먼저 Read]
     CG -->|열람됨| DO_EDIT[✅ 편집 실행]
     
@@ -52,14 +50,12 @@ flowchart TD
     COMMIT_OK --> DONE([완료])
     DONE -.->|머지 후 수동 1회, 자동 아님| BUMP[harness-version-bump<br/>버전 범프 + 태그]
 
-    BLOCK_SCOPE --> IMPL
     BLOCK_CTX --> IMPL
     BLOCK_AC --> IMPL
     BLOCK_BP --> TEST
     BLOCK_RV --> REVIEW
 
     style VERIFY_PHASE fill:#0f3460,stroke:#16213e,color:#eee
-    style BLOCK_SCOPE fill:#8b0000,color:#fff
     style BLOCK_CTX fill:#8b0000,color:#fff
     style BLOCK_AC fill:#8b0000,color:#fff
     style BLOCK_BP fill:#8b0000,color:#fff
@@ -97,7 +93,6 @@ flowchart TD
 ```
 
 여기서 결정되는 것:
-- **scope-gate**가 참조할 OUT OF SCOPE 목록
 - **acceptance-gate**가 참조할 AC 체크박스
 - 이후 모든 게이트의 판단 기준
 
@@ -120,8 +115,6 @@ flowchart TD
 파일을 편집하려면:
   1. 먼저 Read → read-tracker가 read-log.txt에 기록
   2. Edit/Write 시도
-     → [PreToolUse] scope-gate: seed.yaml의 OUT OF SCOPE 확인
-       → 범위 밖이면 차단 + 에러 메시지
      → [PreToolUse] context-gate: read-log.txt 확인
        → 미열람이면 차단 + "먼저 Read하세요"
      → 둘 다 통과하면 편집 실행

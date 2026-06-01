@@ -5,7 +5,7 @@
 ## 1. 아키텍처 개요
 
 하네스는 Claude Code의 hook 시스템 위에 구축된 **자동화된 품질 게이트 체인**이다.
-에이전트의 행동을 사전/사후로 검증하여, 범위 이탈·미확인 편집·미검증 커밋을 차단한다.
+에이전트의 행동을 사전/사후로 검증하여, 미확인 편집·미검증 커밋을 차단한다(범위 이탈은 Surgical Changes 규칙 + PR 리뷰로 관리; scope-gate 폐기됨).
 
 ```mermaid
 flowchart TB
@@ -21,7 +21,6 @@ flowchart TB
     subgraph Gates["Harness Gates"]
         HVC[harness-version-check]
         KD[kickoff-detector]
-        SG[scope-gate]
         CG[context-gate]
         AG[acceptance-gate]
         BG[backpressure-gate]
@@ -45,7 +44,7 @@ flowchart TB
 
     SS --> HVC
     UPS --> KD
-    PRE_RW --> SG --> CG
+    PRE_RW --> CG
     PRE_BASH --> AG --> BG
     POST_READ --> RT
     POST_BASH --> BT
@@ -56,14 +55,12 @@ flowchart TB
     BT -->|append| TH
     BG -->|read| BS
 
-    SG -->|read| SEED
-    SG -->|fallback| SCOPE
     AG -->|read| SEED
     AG -->|fallback| SCOPE
     AG -->|override| AF
     KD -->|check| KF
 
-    HVC & KD & SG & CG & AG & BG & RT & BT -->|append| DL
+    HVC & KD & CG & AG & BG & RT & BT -->|append| DL
 
     style Gates fill:#1a1a2e,stroke:#e94560,color:#eee
     style State fill:#0f3460,stroke:#16213e,color:#eee
@@ -78,7 +75,6 @@ flowchart TB
 
 | 게이트 | 트리거 | 검사 대상 | 차단 조건 | 데이터 소스 |
 |--------|--------|-----------|-----------|-------------|
-| **scope-gate** | Edit\|Write | 편집 파일 경로 | OUT OF SCOPE에 포함 | seed.yaml → current-scope.md |
 | **context-gate** | Edit\|Write | 편집 파일 경로 | read-log에 없음 (미열람) | .omc/harness-state/read-log.txt |
 | **acceptance-gate** | Bash (git commit) | 수락 기준 체크박스 | 미완료 `[ ]` 존재 | seed.yaml → current-scope.md |
 | **backpressure-gate** | Bash (git commit) | 빌드/테스트 상태 | status ≠ "PASS" 또는 UNKNOWN | .omc/harness-state/backpressure-status |
@@ -86,9 +82,7 @@ flowchart TB
 ```mermaid
 flowchart LR
     subgraph "Edit/Write 경로"
-        E[Edit/Write 요청] --> SG{scope-gate}
-        SG -->|IN SCOPE| CG{context-gate}
-        SG -->|OUT OF SCOPE| BLOCK1[❌ 차단]
+        E[Edit/Write 요청] --> CG{context-gate}
         CG -->|파일 열람됨| ALLOW1[✅ 허용]
         CG -->|미열람| BLOCK2[❌ 차단]
     end
@@ -175,10 +169,6 @@ sequenceDiagram
     CC->>H: read-tracker (PostToolUse)
     H->>S: read-log.txt += target.ts
 
-    CC->>H: scope-gate (PreToolUse: Edit)
-    H->>D: seed.yaml → OUT OF SCOPE 확인
-    H-->>CC: ✅ 범위 내
-
     CC->>H: context-gate (PreToolUse: Edit)
     H->>S: read-log.txt 확인
     H-->>CC: ✅ 열람 확인됨
@@ -206,7 +196,6 @@ sequenceDiagram
 
 | 위험 영역 | 게이트 | 강도 |
 |-----------|--------|------|
-| 범위 이탈 편집 | scope-gate | **Hard block** (exit 2) |
 | 미확인 파일 편집 | context-gate + read-tracker | **Hard block** (exit 2) |
 | 미검증 커밋 (빌드/테스트) | backpressure-gate + tracker | **Hard block** (exit 2) |
 | 수락 기준 미달 커밋 | acceptance-gate | **Hard block** (exit 2) |
@@ -219,7 +208,6 @@ sequenceDiagram
 ```mermaid
 flowchart TB
     subgraph covered["✅ 커버됨"]
-        C1[범위 이탈 편집]
         C2[미열람 파일 편집]
         C3[미검증 커밋]
         C4[AC 미달 커밋]
@@ -239,7 +227,6 @@ flowchart TB
     subgraph partial["⚠️ 부분 커버"]
         P1["킥오프 감지 — advisory만<br/>(차단하지 않음)"]
         P2["backpressure — 성공만 기록<br/>(실패 추적 불가)"]
-        P3["scope-gate — 파일 경로만 검사<br/>(코드 내용 변경 의도 미검사)"]
     end
 
     subgraph decided["🟦 의도적 미채택 (결정)"]
@@ -268,7 +255,7 @@ flowchart TB
 
 #### G3. MCP 도구 호출 미게이팅
 - **원인**: Supabase(DDL), Serena(리팩터링), Web Search 등 MCP 도구는 PreToolUse matcher에 등록되지 않음.
-- **결과**: MCP를 통한 DB 스키마 변경, 심볼 리네이밍 등이 scope-gate를 우회.
+- **결과**: MCP를 통한 DB 스키마 변경, 심볼 리네이밍 등이 harness 게이트를 우회.
 - **대안**: `PreToolUse` matcher에 MCP 도구명 패턴 추가 (예: `mcp__supabase*`).
 
 #### G4. 삭제 작업 미차단
@@ -316,7 +303,7 @@ graph LR
         E10["PostToolUse<br/>(Edit|Write)"]
     end
 
-    E1 --- SG[scope-gate] & CG[context-gate]
+    E1 --- CG[context-gate]
     E2 --- AG[acceptance-gate] & BG[backpressure-gate]
     E3 --- RT[read-tracker]
     E4 --- BT[backpressure-tracker]

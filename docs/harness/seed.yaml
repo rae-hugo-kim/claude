@@ -12,22 +12,22 @@ context:
     - rules/agent_routing.md
     - rules/change_control.md
 
-scope:
-  in_scope:
-    - mdBook viewer 도입 (book.toml, mdbook-mermaid preprocessor, 빌드 스크립트)
-    - rules/doc_standards.md 신설 (다이어그램·요약·표·HTML 격리 정책)
-    - .claude/skills/design-mockup/ 스킬 신설 (slider/grid mockup 한정)
-    - artifacts/ 디렉터리 + gitignore 정책
-    - preview/ 트랙 보류 결정 기록
-  out_of_scope:
-    - 기존 MD 파일 일괄 마이그레이션 (표준은 신규 작성부터 적용)
-    - HTML 기반 SST 어느 위치에서든
-    - Storybook · shadcn · Next dev 환경 셋업
-    - D2 · PlantUML 등 Mermaid 대체 다이어그램 툴
-    - mdBook 외 SSG (Quarto, Hugo 등) 검토
-    - CI 자동 배포 (GitHub Pages 등)
-    - motion-design 스킬 (별도 백로그)
-    - 커뮤니티 스킬 fork·설치 (별도 결정)
+# in_scope는 계약 필드는 아니나 참고용으로 유지. out_of_scope는 계약대로 top-level prose.
+in_scope:
+  - mdBook viewer 도입 (book.toml, mdbook-mermaid preprocessor, 빌드 스크립트)
+  - rules/doc_standards.md 신설 (다이어그램·요약·표·HTML 격리 정책)
+  - .claude/skills/design-mockup/ 스킬 신설 (slider/grid mockup 한정)
+  - artifacts/ 디렉터리 + gitignore 정책
+  - preview/ 트랙 보류 결정 기록
+out_of_scope:
+  - 기존 MD 파일 일괄 마이그레이션 (표준은 신규 작성부터 적용)
+  - HTML 기반 SST 어느 위치에서든
+  - Storybook · shadcn · Next dev 환경 셋업
+  - D2 · PlantUML 등 Mermaid 대체 다이어그램 툴
+  - mdBook 외 SSG (Quarto, Hugo 등) 검토
+  - CI 자동 배포 (GitHub Pages 등)
+  - motion-design 스킬 (별도 백로그)
+  - 커뮤니티 스킬 fork·설치 (별도 결정)
 
 acceptance_criteria:
   - id: AC1-mdbook
