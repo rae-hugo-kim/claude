@@ -21,6 +21,8 @@ The following controls are required when harness is available:
 6. `kickoff-detector` hook — reminds about kickoff for new work (UserPromptSubmit)
 7. Architect verification — independent completion verification (oh-my-claudecode agent)
 
+> The commit-only gates — `acceptance-gate`, `backpressure-gate`, and `review-gate` — are registered through a single dispatcher `commit-gates.mjs` (PreToolUse: Bash). It runs one `isGitCommit` check per Bash command and only invokes the three on an actual commit (one spawn instead of three on the common non-commit path). On a commit it runs all three in order and blocks if ANY blocks (each child gets a ~3s budget; a gate that fails to run cleanly is skipped with a loud `HARNESS WARNING`). `destructive-guard` stays a separate PreToolUse:Bash hook (it scans every command, not just commits).
+
 > Scope drift is no longer hook-enforced (scope-gate retired). It is handled by the CLAUDE.md "Surgical Changes" rule + PR review; `out_of_scope` in seed.yaml is advisory prose the agent reads.
 
 ## Gate Verification Requirements
@@ -66,7 +68,7 @@ Use concrete checks, not assumptions.
 1. Confirm hooks directory exists: `test -d .claude/hooks/harness && echo hooks_ok`
 2. Confirm all hook files are present:
    ```bash
-   for h in context-gate read-tracker write-tracker acceptance-gate backpressure-gate backpressure-tracker kickoff-detector; do
+   for h in context-gate read-tracker write-tracker commit-gates acceptance-gate backpressure-gate review-gate backpressure-tracker kickoff-detector; do
      test -f ".claude/hooks/harness/$h.mjs" && echo "$h: ok" || echo "$h: MISSING"
    done
    ```

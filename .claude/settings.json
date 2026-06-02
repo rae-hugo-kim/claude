@@ -21,18 +21,8 @@
           },
           {
             "type": "command",
-            "command": "node .claude/hooks/harness/acceptance-gate.mjs",
-            "timeout": 3
-          },
-          {
-            "type": "command",
-            "command": "node .claude/hooks/harness/backpressure-gate.mjs",
-            "timeout": 3
-          },
-          {
-            "type": "command",
-            "command": "node .claude/hooks/harness/review-gate.mjs",
-            "timeout": 3
+            "command": "node .claude/hooks/harness/commit-gates.mjs",
+            "timeout": 10
           }
         ]
       },
