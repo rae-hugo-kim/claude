@@ -24,6 +24,7 @@ const logFile = join(stateDir, 'hook-debug.log');
 const historyFile = join(stateDir, 'test-history.json');
 
 function log(msg) {
+  if (!process.env.HARNESS_DEBUG) return;
   const timestamp = new Date().toISOString();
   appendFileSync(logFile, `[${timestamp}] backpressure-tracker: ${msg}\n`);
 }

@@ -29,6 +29,7 @@ if (!existsSync(stateDir)) mkdirSync(stateDir, { recursive: true });
 
 const logFile = join(stateDir, 'hook-debug.log');
 function log(msg) {
+  if (!process.env.HARNESS_DEBUG) return;
   appendFileSync(logFile, `[${new Date().toISOString()}] backpressure-failure-tracker: ${msg}\n`);
 }
 
