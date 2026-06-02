@@ -103,6 +103,7 @@ flowchart LR
 | 추적기 | 트리거 | 역할 | 출력 |
 |--------|--------|------|------|
 | **read-tracker** | Read (성공) | 열람 파일 경로 기록 | read-log.txt에 append |
+| **write-tracker** | Edit\|Write (성공) | 작성/편집 파일 경로 기록 (세션 내 작성 파일 재열람 불필요) | read-log.txt에 append |
 | **backpressure-tracker** | Bash (성공) | 빌드/테스트/린트 성공 기록 | backpressure-status, test-history.json |
 
 ```mermaid
@@ -110,6 +111,9 @@ flowchart LR
     R[Read 성공] --> RT[read-tracker]
     RT -->|append| RL[(read-log.txt)]
     RL -.->|공급| CG[context-gate]
+
+    W[Edit/Write 성공] --> WT[write-tracker]
+    WT -->|append| RL
 
     B[Bash 성공<br/>build/test/lint] --> BT[backpressure-tracker]
     BT -->|write PASS| BS[(backpressure-status)]
@@ -294,13 +298,13 @@ graph LR
         E4["PostToolUse<br/>(Bash)"]
         E5["UserPromptSubmit"]
         E6["SessionStart"]
+        E10["PostToolUse<br/>(Edit|Write)"]
     end
 
     subgraph "미사용 이벤트"
         E7["PreCompact"]
         E8["Stop"]
         E9["PreToolUse<br/>(MCP tools)"]
-        E10["PostToolUse<br/>(Edit|Write)"]
     end
 
     E1 --- CG[context-gate]
@@ -309,16 +313,15 @@ graph LR
     E4 --- BT[backpressure-tracker]
     E5 --- KD[kickoff-detector]
     E6 --- HVC[harness-version-check]
+    E10 --- WT[write-tracker] & BI[backpressure-invalidator]
 
     E7 -.- N1["(없음)"]
     E8 -.- N2["(없음)"]
     E9 -.- N3["(없음)"]
-    E10 -.- N4["(없음)"]
 
     style E7 fill:#8b0000,color:#fff,stroke:#ff4444
     style E8 fill:#8b0000,color:#fff,stroke:#ff4444
     style E9 fill:#8b0000,color:#fff,stroke:#ff4444
-    style E10 fill:#8b0000,color:#fff,stroke:#ff4444
 ```
 
 ## 6. 상태 파일 의존성 그래프
@@ -327,6 +330,7 @@ graph LR
 flowchart LR
     subgraph Writers["쓰기"]
         RT[read-tracker]
+        WT[write-tracker]
         BT[backpressure-tracker]
         ALL[모든 훅]
     end
@@ -345,6 +349,7 @@ flowchart LR
     end
 
     RT -->|append| RL
+    WT -->|append| RL
     BT -->|overwrite| BS
     BT -->|append| TH
     BT -->|delete| BF

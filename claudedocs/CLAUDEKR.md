@@ -32,7 +32,7 @@ source_commit_hash: aafe3e1a5c6768da2aa652ef93330b3374808143
 | 항목 | 방법 | 훅 위치 |
 |------|------|---------|
 | 코드 변경 | executor 에이전트에 위임 | N/A (글로벌 규칙) |
-| 편집 전 파일 읽기 | `context-gate` + `read-tracker` 훅 | `.claude/hooks/harness/` |
+| 편집 전 파일 읽기 | `context-gate` + `read-tracker` + `write-tracker` 훅 | `.claude/hooks/harness/` |
 | 완료 검증 | Architect 에이전트 | N/A (글로벌 규칙) |
 | 실패 시 배압 | `backpressure-gate` + `backpressure-tracker` 훅 | `.claude/hooks/harness/` |
 | 인수 기준 | `acceptance-gate` 훅 | `.claude/hooks/harness/` |
