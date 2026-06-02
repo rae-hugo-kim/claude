@@ -13,6 +13,7 @@ The following controls are required when harness is available:
 
 1. `context-gate` hook — blocks edits to unread files (PreToolUse: Edit|Write)
 2. `read-tracker` hook — records file reads for context-gate (PostToolUse: Read)
+   - `write-tracker` hook — records files written for context-gate so a file created this session can be edited without re-reading (PostToolUse: Edit|Write)
 3. `acceptance-gate` hook — blocks commits with unmet acceptance criteria (PreToolUse: Bash)
 4. `backpressure-gate` hook — blocks commits if build/test/lint failed (PreToolUse: Bash)
 5. `backpressure-tracker` hook — records build/test/lint results (PostToolUse: Bash)
@@ -25,11 +26,11 @@ The following controls are required when harness is available:
 
 Use concrete checks, not assumptions.
 
-### 1) `context-gate` + `read-tracker`
+### 1) `context-gate` + `read-tracker` + `write-tracker`
 
-- Files: `.claude/hooks/harness/context-gate.mjs`, `.claude/hooks/harness/read-tracker.mjs`
+- Files: `.claude/hooks/harness/context-gate.mjs`, `.claude/hooks/harness/read-tracker.mjs`, `.claude/hooks/harness/write-tracker.mjs`
 - Log: `.omc/harness-state/hook-debug.log`
-- State: `.omc/harness-state/read-log.txt`
+- State: `.omc/harness-state/read-log.txt` (appended by both `read-tracker` on Read and `write-tracker` on Edit|Write)
 
 ### 2) `acceptance-gate`
 
@@ -64,7 +65,7 @@ Use concrete checks, not assumptions.
 1. Confirm hooks directory exists: `test -d .claude/hooks/harness && echo hooks_ok`
 2. Confirm all hook files are present:
    ```bash
-   for h in context-gate read-tracker acceptance-gate backpressure-gate backpressure-tracker kickoff-detector; do
+   for h in context-gate read-tracker write-tracker acceptance-gate backpressure-gate backpressure-tracker kickoff-detector; do
      test -f ".claude/hooks/harness/$h.mjs" && echo "$h: ok" || echo "$h: MISSING"
    done
    ```
