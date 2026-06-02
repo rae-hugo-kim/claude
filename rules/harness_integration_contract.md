@@ -6,6 +6,7 @@ This document defines the repo-level contract for validating harness integration
 
 All hooks are in `.claude/hooks/harness/` and registered in `.claude/settings.json`.
 Runtime state is stored in `.omc/harness-state/` (project-local, gitignored).
+Hooks that emit a debug trace write it to `.omc/harness-state/hook-debug.log` **only when `HARNESS_DEBUG` is set to a non-empty value** (e.g. `HARNESS_DEBUG=1`); off by default, to avoid log noise. Not every hook logs there — `read-tracker`/`write-tracker` write only `read-log.txt`, and `kickoff-detector`/`harness-version-check` don't use it. Gate behavior — what blocks or allows — never depends on `HARNESS_DEBUG`.
 
 ## Required Gates and Hook Names
 
@@ -29,19 +30,19 @@ Use concrete checks, not assumptions.
 ### 1) `context-gate` + `read-tracker` + `write-tracker`
 
 - Files: `.claude/hooks/harness/context-gate.mjs`, `.claude/hooks/harness/read-tracker.mjs`, `.claude/hooks/harness/write-tracker.mjs`
-- Log: `.omc/harness-state/hook-debug.log`
+- Log: `.omc/harness-state/hook-debug.log` (written only when `HARNESS_DEBUG` is set)
 - State: `.omc/harness-state/read-log.txt` (appended by both `read-tracker` on Read and `write-tracker` on Edit|Write)
 
 ### 2) `acceptance-gate`
 
 - File: `.claude/hooks/harness/acceptance-gate.mjs`
-- Log: `.omc/harness-state/hook-debug.log`
+- Log: `.omc/harness-state/hook-debug.log` (written only when `HARNESS_DEBUG` is set)
 - Reads: `docs/harness/current-scope.md` (checkboxes), `docs/harness/seed.yaml` (AC), `docs/harness/acceptance-done` (override flag)
 
 ### 3) `backpressure-gate` + `backpressure-tracker`
 
 - Files: `.claude/hooks/harness/backpressure-gate.mjs`, `.claude/hooks/harness/backpressure-tracker.mjs`
-- Log: `.omc/harness-state/hook-debug.log`
+- Log: `.omc/harness-state/hook-debug.log` (written only when `HARNESS_DEBUG` is set)
 - State: `.omc/harness-state/backpressure-status`, `.omc/harness-state/test-history.json`
 - **Known limitation**: `backpressure-tracker` runs on PostToolUse (success only). Claude Code does not invoke PostToolUse hooks on tool failure, so failed build/test/lint results are not recorded. `backpressure-gate` can only verify the presence of recent success, not detect failures directly.
 
@@ -101,7 +102,7 @@ When downgrading, final report MUST include:
 | Symptom | Likely cause | Safe mitigation |
 |---|---|---|
 | Hook file not found in `.claude/hooks/harness/` | Partial clone or deleted hook file | Re-clone template or restore from git; if blocked, activate manual checklist downgrade |
-| Hook exists but no events in `.omc/harness-state/hook-debug.log` | Hook not registered in `.claude/settings.json` | Verify settings.json hook entries, restart session, re-run benign trigger |
+| Hook exists but no events in `.omc/harness-state/hook-debug.log` | Debug logging is OFF by default (gated behind `HARNESS_DEBUG`) | An empty/absent log does NOT mean the hook is unregistered. Set `HARNESS_DEBUG=1` to enable logging, then verify settings.json entries and re-run a benign trigger. |
 | `acceptance-gate` repeatedly blocks completion | Missing evidence or unchecked AC in `current-scope.md` | Check off completed criteria or create `docs/harness/acceptance-done` override |
 | `backpressure-gate` loops on failures | Underlying failing test/check never addressed | Stop retries, fix root cause, then re-run once with documented rationale |
 | `context-gate` blocks unexpectedly | `read-log.txt` missing or stale | Read the file first; if persistent, check read-tracker is registered in settings.json |

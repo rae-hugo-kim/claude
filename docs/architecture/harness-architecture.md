@@ -60,7 +60,8 @@ flowchart TB
     AG -->|override| AF
     KD -->|check| KF
 
-    HVC & KD & CG & AG & BG & RT & BT -->|append| DL
+    CG & AG & BG & BT -->|append if HARNESS_DEBUG| DL
+    HVC -->|rotate| DL
 
     style Gates fill:#1a1a2e,stroke:#e94560,color:#eee
     style State fill:#0f3460,stroke:#16213e,color:#eee
@@ -353,12 +354,14 @@ flowchart LR
     BT -->|overwrite| BS
     BT -->|append| TH
     BT -->|delete| BF
-    ALL -->|append| DL
+    ALL -->|append if HARNESS_DEBUG| DL
 
     RL --> CG
     BS --> BG
     BF --> BG
 ```
+
+> `hook-debug.log` is written **only when `HARNESS_DEBUG` is set to a non-empty value** (off by default, to avoid log noise — audit item #8a). The `모든 훅 → hook-debug.log` edge is an approximation: only the gate/tracker hooks that emit debug traces write there (not `read-tracker`/`write-tracker`, which write `read-log.txt`). Every other state write and all gate/block behavior is independent of `HARNESS_DEBUG`.
 
 ## 7. 우선순위별 개선 제안
 

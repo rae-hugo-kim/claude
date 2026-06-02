@@ -26,6 +26,7 @@ const stateDir = getStateDir(cwd);
 const logFile = join(stateDir, 'hook-debug.log');
 
 function log(msg) {
+  if (!process.env.HARNESS_DEBUG) return;
   const timestamp = new Date().toISOString();
   appendFileSync(logFile, `[${timestamp}] mcp-gate: ${msg}\n`);
 }
