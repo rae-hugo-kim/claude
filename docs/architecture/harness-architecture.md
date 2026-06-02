@@ -309,7 +309,8 @@ graph LR
     end
 
     E1 --- CG[context-gate]
-    E2 --- AG[acceptance-gate] & BG[backpressure-gate]
+    E2 --- DG[destructive-guard] & CGATES[commit-gates]
+    CGATES -.->|delegates on git commit| AG[acceptance-gate] & BG[backpressure-gate] & RV[review-gate]
     E3 --- RT[read-tracker]
     E4 --- BT[backpressure-tracker]
     E5 --- KD[kickoff-detector]
