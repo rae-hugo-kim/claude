@@ -1,10 +1,10 @@
 <!-- policy-sync-warning:start -->
 warning_type: reference_only
 non_normative_reference_only: true
-last_sync_date: 2026-03-31
+last_sync_date: 2026-06-04
 status: synced
 source_of_truth: ../CLAUDE.md
-source_commit_hash: aafe3e1a5c6768da2aa652ef93330b3374808143
+source_commit_hash: 614b3fd6e801e264593225b25699d3381647dd96
 <!-- policy-sync-warning:end -->
 
 # CLAUDE.md (에이전트 규칙 - 계층형)
@@ -116,9 +116,19 @@ Harness 검증 계약 세부 사항: [`rules/harness_integration_contract.md`](.
 
 - 전체 정책은 [`rules/mcp_policy.md`](../rules/mcp_policy.md)를 참조합니다.
 - **Context7**: 새로운 외부 API/SDK, 의존성, 버전 민감 문법에는 MUST 사용.
-- **Serena**: 심볼 탐색, 리팩토링, 코드 이해에 SHOULD 사용.
+- **Serena**: 심볼 탐색, 리팩토링에 SHOULD 사용. `--context claude-code` 플래그를 MUST 사용.
 - **Supabase**: DDL에는 MUST 마이그레이션 사용; 쿼리에는 MAY 직접 SQL 사용.
 - **Web Search**: 최신 이벤트, 오류, 최신 문서에 SHOULD 사용.
+
+## 에이전트 라우팅 정책 (트리거 기반)
+
+- 전체 라우팅 규칙은 [`rules/agent_routing.md`](../rules/agent_routing.md)를 참조합니다.
+- **researcher** (Exa): 외부 문서, 웹 검색, 오류 조회에 SHOULD 위임.
+- **db-worker** (Supabase): DDL 변경 및 스키마 작업에 MUST 위임.
+- **refactorer** (Serena): 3개 이상 파일의 심볼 리네임 또는 영향 분석에 SHOULD 위임.
+- **full-context** (전체 MCP): 한 작업에서 2개 이상의 MCP 도메인이 교차할 때 SHOULD 위임.
+- **reviewer**: 10줄 이상 코드 변경 또는 로직 변경에 SHOULD 위임. 3-패스 적대 리뷰(self + Codex + OMC).
+- **verifier**: AC가 존재할 때 작업 완료 주장 전에 MUST 위임.
 
 ## 연결된 모듈
 
@@ -141,9 +151,12 @@ Harness 검증 계약 세부 사항: [`rules/harness_integration_contract.md`](.
 - Cost awareness: [`rules/cost_awareness.md`](../rules/cost_awareness.md)
 - Learning policy: [`rules/learning_policy.md`](../rules/learning_policy.md)
 - Coding standards: [`rules/coding_standards.md`](../rules/coding_standards.md)
+- Documentation standards: [`rules/doc_standards.md`](../rules/doc_standards.md)
 - Agent security: [`rules/agent_security.md`](../rules/agent_security.md)
 - Hook recipes: [`rules/hook_recipes.md`](../rules/hook_recipes.md)
 - Session persistence: [`rules/session_persistence.md`](../rules/session_persistence.md)
+- Adversarial review: [`rules/adversarial_review.md`](../rules/adversarial_review.md)
+- Agent routing: [`rules/agent_routing.md`](../rules/agent_routing.md)
 
 ## 체크리스트 (필요 시 사용)
 
