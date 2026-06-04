@@ -1,10 +1,10 @@
 <!-- policy-sync-warning:start -->
 warning_type: reference_only
 non_normative_reference_only: true
-last_sync_date: 2026-03-31
+last_sync_date: 2026-06-04
 status: synced
 source_of_truth: ../CLAUDE.md
-source_commit_hash: aafe3e1a5c6768da2aa652ef93330b3374808143
+source_commit_hash: 614b3fd6e801e264593225b25699d3381647dd96
 <!-- policy-sync-warning:end -->
 
 # CLAUDE.md (Team Standard) — Expanded English Reference
@@ -229,7 +229,7 @@ Do not execute or propose the following without explicit user request and approv
 | MCP Server | Policy |
 |------------|--------|
 | **Context7** | MUST use for new external APIs/SDKs, dependencies, version-sensitive syntax |
-| **Serena** | SHOULD use for symbol navigation, refactoring, code understanding |
+| **Serena** | SHOULD use for symbol navigation and refactoring; MUST use the `--context claude-code` flag |
 | **Supabase** | MUST use migrations for DDL; MAY use direct SQL for queries |
 | **Web Search** | SHOULD use for current events, errors, latest docs |
 
@@ -245,6 +245,23 @@ Use Context7 (`mcp__context7__query-docs`) before writing code that involves:
 Invocation: include `use context7` in the prompt, or specify `use library /org/project` (e.g., `/vercel/next.js`).
 
 **Prohibited without Context7**: generating library-related code based on training data alone when the library is version-sensitive.
+
+---
+
+## Agent Routing Policy (Trigger-Based)
+
+Delegate specialized work to the agent best suited for it. These triggers complement the MCP policy above — the MCP policy decides *which server* an agent reaches for; this policy decides *which agent* runs.
+
+| Agent | When to Delegate |
+|-------|------------------|
+| **researcher** (Exa) | SHOULD delegate for external docs, web search, and error lookups |
+| **db-worker** (Supabase) | MUST delegate for DDL changes and schema operations |
+| **refactorer** (Serena) | SHOULD delegate for symbol renames across 3+ files or impact analysis |
+| **full-context** (all MCP) | SHOULD delegate when 2+ MCP domains intersect in one task |
+| **reviewer** | SHOULD delegate for code changes ≥10 lines or logic changes; runs a 3-pass adversarial review (self + Codex + OMC) |
+| **verifier** | MUST delegate before claiming task completion when acceptance criteria exist |
+
+See `rules/agent_routing.md` for the full routing rules.
 
 ---
 
@@ -468,8 +485,11 @@ The following linked modules expand specific rules. Consult them for full detail
 | `rules/cost_awareness.md` | Token cost awareness |
 | `rules/learning_policy.md` | How to capture and reuse learnings |
 | `rules/coding_standards.md` | Naming, immutability, file size, single responsibility |
+| `rules/doc_standards.md` | Documentation standards and conventions |
 | `rules/hook_recipes.md` | Hook patterns and recipes |
 | `rules/session_persistence.md` | Session state and persistence rules |
+| `rules/adversarial_review.md` | Adversarial multi-pass review (self + Codex + OMC) |
+| `rules/agent_routing.md` | Which agent to delegate to, by trigger |
 
 ---
 
