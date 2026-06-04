@@ -1,0 +1,183 @@
+// Tests for scripts/docs-drift hardening (audit P2 #8).
+//
+// Run: node --test tests/docs-drift.test.mjs
+//
+// Covers the two behaviour changes plus an in-situ regression lock:
+//   (1) computeReachableHooks — orphan detection by reachability over the hook
+//       reference graph, so the commit-gates dispatcher's delegated gates and
+//       imported helper modules are NOT false-flagged as orphans, while a
+//       genuinely dead hook still is. (PR #43 introduced the false positives.)
+//   (2) refDocStaleSeverity — a mirror that claims `status: synced` while its
+//       stamped hash lags CLAUDE.md is a hard FAIL; an explicit `status: stale`
+//       is an accepted escape hatch.
+//   (3) on the real repo, the six previously-flagged hooks resolve as reachable
+//       and the whole pipeline exits 0.
+
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { createRequire } from 'node:module';
+import { mkdtempSync, writeFileSync, rmSync, readFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { spawnSync } from 'node:child_process';
+
+const require = createRequire(import.meta.url);
+const here = dirname(fileURLToPath(import.meta.url));
+const repoRoot = resolve(here, '..');
+const driftPath = resolve(repoRoot, 'scripts/docs-drift');
+const { computeReachableHooks, refDocStaleSeverity, getRegisteredHookPaths } =
+  require(driftPath);
+
+const HOOK_PREFIX = '.claude/hooks/harness';
+const hookPath = (name) => `${HOOK_PREFIX}/${name}`;
+
+// Build a temporary hooks directory with the given { filename: source } map.
+function withHooksDir(files, fn) {
+  const dir = mkdtempSync(join(tmpdir(), 'docs-drift-hooks-'));
+  try {
+    for (const [name, source] of Object.entries(files)) {
+      writeFileSync(join(dir, name), source);
+    }
+    return fn(dir);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+// --- (1) computeReachableHooks: reachability over import/spawn edges ---
+
+test('reachability: seeds, spawn-literal, import, transitive are live; dead is orphan', () => {
+  const files = {
+    // registered dispatcher: spawns gate-a by filename, imports git-helper
+    'dispatcher.mjs': `const GATES = ['gate-a.mjs'];\nimport { x } from './git-helper.mjs';\n`,
+    // gate spawned by dispatcher, imports a deeper helper (transitive edge)
+    'gate-a.mjs': `import { r } from './deep-helper.mjs';\n`,
+    'git-helper.mjs': `export const x = 1;\n`,
+    'deep-helper.mjs': `export const r = 2;\n`,
+    // registered standalone tracker referencing nothing
+    'tracker.mjs': `export default null;\n`,
+    // genuinely dead: not registered, nothing references it
+    'dead.mjs': `export const gone = true;\n`,
+  };
+
+  withHooksDir(files, (dir) => {
+    const seeds = new Set([hookPath('dispatcher.mjs'), hookPath('tracker.mjs')]);
+    const reachable = computeReachableHooks(seeds, dir);
+
+    assert.ok(reachable.has(hookPath('dispatcher.mjs')), 'seed dispatcher');
+    assert.ok(reachable.has(hookPath('tracker.mjs')), 'seed tracker');
+    assert.ok(reachable.has(hookPath('gate-a.mjs')), 'spawn-literal edge');
+    assert.ok(reachable.has(hookPath('git-helper.mjs')), 'import edge');
+    assert.ok(reachable.has(hookPath('deep-helper.mjs')), 'transitive import edge');
+    assert.ok(!reachable.has(hookPath('dead.mjs')), 'dead file must stay orphan');
+  });
+});
+
+test('reachability: a self-referencing unregistered file is still an orphan', () => {
+  const files = {
+    'seed.mjs': `export default 1;\n`,
+    // mentions its own name in a literal -> self-edge must be ignored, and it is
+    // not seeded nor referenced by anyone else, so it must remain unreachable.
+    'lonely.mjs': `const me = 'lonely.mjs';\n`,
+  };
+  withHooksDir(files, (dir) => {
+    const reachable = computeReachableHooks(new Set([hookPath('seed.mjs')]), dir);
+    assert.ok(reachable.has(hookPath('seed.mjs')));
+    assert.ok(!reachable.has(hookPath('lonely.mjs')), 'self-reference must not make a file reachable');
+  });
+});
+
+test('reachability: a quoted .mjs inside a comment does not revive a dead hook', () => {
+  const files = {
+    // The seed names dead-gate.mjs only inside comments — a line comment and a
+    // block comment, both with the quoted literal. Comments are stripped before
+    // edge extraction, so neither creates an edge and dead-gate stays an orphan.
+    'seed.mjs': `// removed the call to 'dead-gate.mjs'\n/* was: spawn("dead-gate.mjs") */\nexport default 1;\n`,
+    'dead-gate.mjs': `export default 2;\n`,
+  };
+  withHooksDir(files, (dir) => {
+    const reachable = computeReachableHooks(new Set([hookPath('seed.mjs')]), dir);
+    assert.ok(!reachable.has(hookPath('dead-gate.mjs')), 'comment-only mention must not create an edge');
+  });
+});
+
+test('reachability: an external import sharing a basename with a harness file is not an edge', () => {
+  const files = {
+    // The literal resolves outside the hooks dir; it must not revive the
+    // same-named dead harness file victim.mjs.
+    'seed.mjs': `import { z } from '../../other/victim.mjs';\nexport default 1;\n`,
+    'victim.mjs': `export const z = 9;\n`,
+  };
+  withHooksDir(files, (dir) => {
+    const reachable = computeReachableHooks(new Set([hookPath('seed.mjs')]), dir);
+    assert.ok(!reachable.has(hookPath('victim.mjs')), 'same-basename external path must not create an edge');
+  });
+});
+
+// --- (2) refDocStaleSeverity: synced-but-stale is FAIL, marked-stale is allowed ---
+
+test('refDocStaleSeverity: matching hash is clean (null)', () => {
+  assert.equal(
+    refDocStaleSeverity({ sourceCommitHash: 'abc', currentSourceHash: 'abc', status: 'synced' }),
+    null,
+  );
+});
+
+test('refDocStaleSeverity: synced + hash mismatch is FAIL', () => {
+  assert.equal(
+    refDocStaleSeverity({ sourceCommitHash: 'abc', currentSourceHash: 'def', status: 'synced' }),
+    'FAIL',
+  );
+});
+
+test('refDocStaleSeverity: the exact token "stale" is the accepted escape hatch (null)', () => {
+  for (const status of ['stale', '  stale  ', 'STALE', 'Stale']) {
+    assert.equal(
+      refDocStaleSeverity({ sourceCommitHash: 'abc', currentSourceHash: 'def', status }),
+      null,
+      `status ${JSON.stringify(status)} should opt out`,
+    );
+  }
+});
+
+test('refDocStaleSeverity: a status that merely contains "stale" still FAILs (no over-match)', () => {
+  // The old /\bstale\b/ derivation let these slip the FAIL — they must not.
+  for (const status of ['synced # not stale', 'not stale', 'synced/stale', 'was stale, now synced', '']) {
+    assert.equal(
+      refDocStaleSeverity({ sourceCommitHash: 'abc', currentSourceHash: 'def', status }),
+      'FAIL',
+      `status ${JSON.stringify(status)} must not be a valid opt-out`,
+    );
+  }
+});
+
+// --- (3) in-situ regression lock on the real repo ---
+
+test('real repo: commit-gates delegated gates + imported helpers are reachable', () => {
+  const settings = JSON.parse(readFileSync(join(repoRoot, '.claude/settings.json'), 'utf8'));
+  const seeds = getRegisteredHookPaths(settings);
+  const reachable = computeReachableHooks(seeds, join(repoRoot, '.claude/hooks/harness'));
+
+  const previouslyFalseOrphans = [
+    'acceptance-gate.mjs',
+    'backpressure-gate.mjs',
+    'review-gate.mjs',
+    'risk-assess.mjs',
+    'git-commit-detect.mjs',
+    'backpressure-patterns.mjs',
+  ];
+  for (const name of previouslyFalseOrphans) {
+    assert.ok(reachable.has(hookPath(name)), `${name} should be reachable (delegated/imported), not an orphan`);
+  }
+});
+
+test('real repo: docs-drift exits 0 with no drift', () => {
+  const result = spawnSync(process.execPath, [driftPath], {
+    cwd: repoRoot,
+    encoding: 'utf8',
+  });
+  assert.equal(result.status, 0, `docs-drift should exit 0; stdout:\n${result.stdout}`);
+  assert.match(result.stdout, /\[docs:drift\] OK/, 'expected a clean OK report');
+  assert.ok(!/Orphan hook file/.test(result.stdout), 'no orphan-hook warnings expected');
+});

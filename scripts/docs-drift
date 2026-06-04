@@ -14,8 +14,6 @@ const WARNING = 'WARNING';
 const issues = [];
 const headingCache = new Map();
 
-main();
-
 function main() {
   const markdownFiles = collectMarkdownFiles(repoRoot);
   const markdownSet = new Set(markdownFiles.map((filePath) => toRepoPath(filePath)));
@@ -280,14 +278,94 @@ function checkHookRegistration() {
     }
   }
 
+  // A hook is "live" if it is registered directly in settings.json OR reachable
+  // from a registered hook through an import / spawn reference. The commit-gates
+  // dispatcher spawns acceptance/backpressure/review-gate; several gates import
+  // risk-assess, git-commit-detect, or backpressure-patterns. None of those
+  // appear in settings.json, so a registration-only check flags them as false
+  // orphans. Reachability over the hook reference graph treats them as live
+  // while still flagging a genuinely dead hook (unregistered and unreferenced).
+  const reachable = computeReachableHooks(registeredHooks, hooksDir);
+
   for (const hookPath of actualHooks) {
-    if (!registeredHooks.has(hookPath)) {
+    if (!reachable.has(hookPath)) {
       addIssue(WARNING, 'Orphan hook file', {
         file: hookPath,
-        reason: 'exists in repo but is not registered in .claude/settings.json',
+        reason:
+          'not registered in .claude/settings.json and not reachable (import/spawn) from any registered hook',
       });
     }
   }
+}
+
+// Build a reference graph over harness *.mjs files and return the set of hook
+// paths reachable from the registered seeds. An edge A -> B exists when hook A's
+// source contains a quoted "*.mjs" string literal (an import specifier or a
+// spawn-by-filename) whose basename resolves to a real file B in the harness
+// directory. Prose mentions are excluded because they lack the quoted ".mjs"
+// form. Seeds are limited to registered hooks, so a dead file imported only by
+// another dead file is never reached, preserving orphan detection.
+function computeReachableHooks(registeredHooks, hooksDir) {
+  const harnessFiles = new Set(
+    fs.readdirSync(hooksDir).filter((name) => name.endsWith('.mjs')),
+  );
+  const toHookPath = (name) => `.claude/hooks/harness/${name}`;
+
+  const hooksDirResolved = path.resolve(hooksDir);
+  const edges = new Map();
+  for (const name of harnessFiles) {
+    const source = stripJsComments(fs.readFileSync(path.join(hooksDir, name), 'utf8'));
+    const refs = new Set();
+    // Same-quote string literals ending in ".mjs" — an import specifier or a
+    // spawn-by-filename argument. Comments are stripped first so a name that
+    // appears only in a comment does not create a phantom edge that could hide
+    // a genuinely dead hook.
+    const mjsLiteral = /(['"`])([^'"`]*?\.mjs)\1/g;
+    let match;
+    while ((match = mjsLiteral.exec(source)) !== null) {
+      // Resolve relative to the hooks dir (a bare filename or a "./sibling.mjs"
+      // specifier). Only a literal that lands on a direct child of the hooks dir
+      // is a real edge; a same-basename path elsewhere (e.g. "../../x/foo.mjs")
+      // is not, so it cannot falsely revive a dead hook named foo.mjs.
+      const resolved = path.resolve(hooksDir, match[2]);
+      if (path.dirname(resolved) !== hooksDirResolved) continue;
+      const base = path.basename(resolved);
+      if (harnessFiles.has(base) && base !== name) {
+        refs.add(toHookPath(base));
+      }
+    }
+    edges.set(toHookPath(name), refs);
+  }
+
+  const reachable = new Set();
+  const queue = [];
+  for (const seed of registeredHooks) {
+    if (harnessFiles.has(path.basename(seed)) && !reachable.has(seed)) {
+      reachable.add(seed);
+      queue.push(seed);
+    }
+  }
+  while (queue.length > 0) {
+    const current = queue.shift();
+    for (const next of edges.get(current) || []) {
+      if (!reachable.has(next)) {
+        reachable.add(next);
+        queue.push(next);
+      }
+    }
+  }
+  return reachable;
+}
+
+// Strip JS block and line comments so the hook reference graph is built only
+// from real import/spawn string literals, not from filenames mentioned in
+// comments. Heuristic (not a full parser): the "://" guard on line comments
+// keeps URLs inside real string literals intact, and the edge resolver further
+// rejects any literal that does not land inside the hooks dir.
+function stripJsComments(source) {
+  return source
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .replace(/(^|[^:])\/\/[^\n]*/g, '$1');
 }
 
 function getRegisteredHookPaths(settings) {
@@ -328,6 +406,12 @@ function checkReferenceDocs() {
     'claudedocs/CLAUDE_original.md',
   ];
   const currentSourceHash = getClaudeSourceCommitHash();
+  if (!currentSourceHash) {
+    addIssue(WARNING, 'Reference-doc freshness unverified', {
+      reason:
+        'could not determine the current CLAUDE.md commit hash (shallow clone, uncommitted CLAUDE.md, or git unavailable) — the stale check was skipped, not passed',
+    });
+  }
 
   for (const relativePath of referenceDocs) {
     const filePath = path.join(repoRoot, relativePath);
@@ -344,7 +428,6 @@ function checkReferenceDocs() {
     const sourceOfTruth = extractMetadataField(content, 'source_of_truth');
     const sourceCommitHash = extractMetadataField(content, 'source_commit_hash');
     const status = extractMetadataField(content, 'status') || '';
-    const isMarkedStale = /\bstale\b/i.test(status);
 
     if (!sourceOfTruth) {
       addIssue(FAIL, 'Missing canonical source metadata', {
@@ -366,13 +449,33 @@ function checkReferenceDocs() {
       continue;
     }
 
-    if (sourceCommitHash !== currentSourceHash && !isMarkedStale) {
-      addIssue(WARNING, 'Unmarked stale reference doc', {
+    const staleSeverity = refDocStaleSeverity({
+      sourceCommitHash,
+      currentSourceHash,
+      status,
+    });
+    if (staleSeverity) {
+      addIssue(staleSeverity, 'Reference doc claims synced but is stale', {
         file: relativePath,
-        reason: `source_commit_hash (${sourceCommitHash}) does not match CLAUDE.md (${currentSourceHash})`,
+        reason: `source_commit_hash (${sourceCommitHash}) does not match CLAUDE.md (${currentSourceHash}) while metadata still says status: synced — re-sync content and re-stamp, or mark status: stale`,
       });
     }
   }
+}
+
+// Severity for a reference-doc whose stamped source hash differs from the
+// current CLAUDE.md hash. A mirror that lags while still claiming `status:
+// synced` is false comfort and a hard FAIL (this is the integrity check P2 #8
+// adds). A mirror explicitly marked `status: stale` is an accepted, deferred
+// state (escape hatch) and is not flagged. Matching hashes are clean.
+function refDocStaleSeverity({ sourceCommitHash, currentSourceHash, status }) {
+  if (sourceCommitHash === currentSourceHash) return null;
+  // Only the exact, sole token "stale" is the accepted escape hatch. A status
+  // that merely contains the word (e.g. "synced # not stale", "not stale",
+  // "synced/stale") is NOT a valid opt-out and must still FAIL — otherwise the
+  // false-comfort drift this check exists to catch would slip through.
+  if ((status || '').trim().toLowerCase() === 'stale') return null;
+  return FAIL;
 }
 
 function extractMetadataField(content, fieldName) {
@@ -682,3 +785,11 @@ function toRepoPath(filePath) {
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
+
+if (require.main === module) {
+  main();
+}
+
+// Exported for unit tests (tests/docs-drift.test.mjs). When required as a
+// module, main() does not run (guarded above) so the checks have no side effects.
+module.exports = { computeReachableHooks, refDocStaleSeverity, getRegisteredHookPaths };
