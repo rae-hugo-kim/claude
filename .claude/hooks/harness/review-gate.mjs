@@ -19,6 +19,32 @@ function getStateDir(cwd) {
   return dir;
 }
 
+// Decide whether today's reviews cover the current diff and whether any covering
+// review is a FAIL. `reviews` is [{ name, content }]; `currentHash` is the staged
+// diff hash (or null when git could not produce one).
+// - A review "covers" the diff when it carries the hash in a `diff-hash` FIELD at
+//   the start of a line (optionally behind Markdown list/quote/bold markers), e.g.
+//   "diff-hash: <h>" or "diff-hash (initial review): <h>" or "- **diff-hash: <h>**".
+//   A bare hash in prose, or a different field like "previous-diff-hash:", does NOT
+//   count — the field must begin the line so it asserts coverage, not just mention it.
+// - ALL of today's reviews are scanned (not just the lexicographically-last one),
+//   so several PRs landing the same day don't shadow each other.
+// - FAIL blocks only when it covers the current diff; if the hash is unknown we
+//   fall back to any of today's reviews so an explicit FAIL still blocks.
+// - matchedCurrent is true/false when a hash exists, or null when it could not be
+//   computed (the gate treats null as "unverified" and fails closed on high/critical).
+function evaluateReviews(reviews, currentHash) {
+  // ^ + optional "[ \t>*-]" markers + word-bounded "diff-hash" field + the hash.
+  const covers = currentHash
+    ? (content) => new RegExp(`^[ \\t>*-]*diff-hash\\b[^\\n:]*:[ \\t]*${currentHash}\\b`, 'm').test(content)
+    : () => false;
+  const matching = currentHash ? reviews.filter((r) => covers(r.content)) : [];
+  const failScope = matching.length > 0 ? matching : (currentHash ? [] : reviews);
+  const hasFail = failScope.some((r) => /Verdict:\s*FAIL/i.test(r.content));
+  const matchedCurrent = currentHash ? matching.length > 0 : null;
+  return { hasFail, matchedCurrent };
+}
+
 const input = readFileSync(0, 'utf-8');
 
 let data;
@@ -84,35 +110,55 @@ if (todayReviews.length === 0) {
   process.exit(0);
 }
 
-const latestReview = join(reviewDir, todayReviews.sort().pop());
-const content = readFileSync(latestReview, 'utf-8');
+// Compute the current diff hash, then correlate it against today's reviews.
+// execSync always runs through a shell, so the pipe needs no `shell` option.
+// Known gap (pre-existing, tracked follow-up): the hash covers the staged diff
+// (or the working tree when nothing is staged), so a `git commit -a` / pathspec
+// commit can include tracked changes the review didn't see. Closing that needs
+// commit-form parsing + effective-content hashing — out of scope for this gate.
+let currentHash = null;
+try {
+  const staged = execSync('git diff --cached', { cwd, encoding: 'utf-8' }).trim();
+  const hashCmd = staged ? 'git diff --cached | shasum -a 256' : 'git diff | shasum -a 256';
+  currentHash = execSync(hashCmd, { cwd, encoding: 'utf-8' }).trim().split(/\s+/)[0];
+} catch {
+  currentHash = null;
+}
 
-if (/Verdict:\s*FAIL/i.test(content)) {
-  log('BLOCKED: Latest review verdict is FAIL');
-  console.error(`HARNESS BLOCK: Latest review verdict is FAIL. Fix issues before committing.`);
+const reviews = todayReviews.map((f) => {
+  try {
+    return { name: f, content: readFileSync(join(reviewDir, f), 'utf-8') };
+  } catch {
+    return { name: f, content: '' };
+  }
+});
+
+const { hasFail, matchedCurrent } = evaluateReviews(reviews, currentHash);
+
+// A FAIL verdict covering the current diff blocks regardless of risk level.
+if (hasFail) {
+  log('BLOCKED: a review verdict is FAIL for the current changes');
+  console.error('HARNESS BLOCK: a review verdict is FAIL for the current changes. Fix issues before committing.');
   process.exit(2);
 }
 
-// Diff hash correlation check
-let currentHash;
-try {
-  const staged = execSync('git diff --cached', { cwd, encoding: 'utf-8' });
-  if (staged.trim()) {
-    currentHash = execSync('git diff --cached | shasum -a 256', { cwd, encoding: 'utf-8', shell: true }).trim().split(' ')[0];
-  } else {
-    currentHash = execSync('git diff | shasum -a 256', { cwd, encoding: 'utf-8', shell: true }).trim().split(' ')[0];
-  }
-} catch { currentHash = null; }
-
-if (currentHash && !content.includes('diff-hash: ' + currentHash)) {
+// A review must positively cover this diff. matchedCurrent === true means a today
+// review carries the current diff hash. Both false (no match) and null (hash could
+// not be computed) mean "unverified" — high/critical fails closed, matching the
+// harness's fail-closed-on-unknown stance (cf. backpressure-gate). review-skip
+// (handled above) is the deliberate escape hatch.
+if (matchedCurrent !== true) {
+  const detail = currentHash
+    ? 'no review matches the current changes'
+    : 'could not compute the diff hash to verify review coverage';
   if (risk.level === 'critical' || risk.level === 'high') {
-    log('BLOCKED: Review does not match current diff');
-    console.error('HARNESS BLOCK: Review does not match current changes. Re-run reviewer agent.');
+    log(`BLOCKED: ${detail}`);
+    console.error(`HARNESS BLOCK: ${detail}. Re-run reviewer agent, or create docs/harness/review-skip to override.`);
     process.exit(2);
   }
-  log('WARNING: Review may not match current diff');
-  console.error('HARNESS WARNING: Review may not cover current changes. Consider re-running reviewer.');
+  log(`WARNING: ${detail}`);
+  console.error(`HARNESS WARNING: ${detail}. Consider re-running reviewer.`);
 }
 
-log(`Review exists (${todayReviews.length} today), verdict not FAIL, allowing`);
+log(`Review check passed (${todayReviews.length} today, matchedCurrent=${matchedCurrent})`);
 process.exit(0);
