@@ -11,7 +11,7 @@ import { readFileSync, existsSync, appendFileSync, mkdirSync, readdirSync, unlin
 import { join } from 'path';
 import { execSync } from 'child_process';
 import { assessRisk } from './risk-assess.mjs';
-import { isGitCommit } from './git-commit-detect.mjs';
+import { isGitCommit, parseCommitForm } from './git-commit-detect.mjs';
 
 function getStateDir(cwd) {
   const dir = join(cwd, '.omc', 'harness-state');
@@ -20,8 +20,8 @@ function getStateDir(cwd) {
 }
 
 // Decide whether today's reviews cover the current diff and whether any covering
-// review is a FAIL. `reviews` is [{ name, content }]; `currentHash` is the staged
-// diff hash (or null when git could not produce one).
+// review is a FAIL. `reviews` is [{ name, content }]; `currentHash` is the
+// effective committed-diff hash (or null when it could not be produced).
 // - A review "covers" the diff when it carries the hash in a `diff-hash` FIELD at
 //   the start of a line (optionally behind Markdown list/quote/bold markers), e.g.
 //   "diff-hash: <h>" or "diff-hash (initial review): <h>" or "- **diff-hash: <h>**".
@@ -110,19 +110,26 @@ if (todayReviews.length === 0) {
   process.exit(0);
 }
 
-// Compute the current diff hash, then correlate it against today's reviews.
-// execSync always runs through a shell, so the pipe needs no `shell` option.
-// Known gap (pre-existing, tracked follow-up): the hash covers the staged diff
-// (or the working tree when nothing is staged), so a `git commit -a` / pathspec
-// commit can include tracked changes the review didn't see. Closing that needs
-// commit-form parsing + effective-content hashing — out of scope for this gate.
+// Hash the EFFECTIVE committed diff, then correlate it against today's reviews.
+// parseCommitForm tells us which diff the commit will capture:
+//   all=true (-a/--all) -> all tracked changes  (git diff HEAD)
+//   else (plain)        -> the staged index     (git diff --cached)
+// This closes the gap where `git commit -a` pulled in tracked changes the staged-diff
+// hash never saw, letting a stale PASS review match the wrong content. Every other
+// form (pathspec, --amend, --include/-i, -p, --pathspec-from-file, a commit behind
+// bash -c, >1 commit in one line, or a repo-redirecting global like -C) is UNVERIFIABLE:
+// currentHash stays null and the gate fails closed on high/critical (see the
+// matchedCurrent !== true branch below). execSync runs through a shell, so the pipe
+// needs no `shell` option; both diff commands are constant (no user input on the line).
 let currentHash = null;
-try {
-  const staged = execSync('git diff --cached', { cwd, encoding: 'utf-8' }).trim();
-  const hashCmd = staged ? 'git diff --cached | shasum -a 256' : 'git diff | shasum -a 256';
-  currentHash = execSync(hashCmd, { cwd, encoding: 'utf-8' }).trim().split(/\s+/)[0];
-} catch {
-  currentHash = null;
+const form = parseCommitForm(command);
+if (form.verifiable) {
+  const diffCmd = form.all ? 'git diff HEAD' : 'git diff --cached';
+  try {
+    currentHash = execSync(`${diffCmd} | shasum -a 256`, { cwd, encoding: 'utf-8' }).trim().split(/\s+/)[0];
+  } catch {
+    currentHash = null;
+  }
 }
 
 const reviews = todayReviews.map((f) => {

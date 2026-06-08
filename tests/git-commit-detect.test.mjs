@@ -15,7 +15,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { isGitCommit } from '../.claude/hooks/harness/git-commit-detect.mjs';
+import { isGitCommit, parseCommitForm } from '../.claude/hooks/harness/git-commit-detect.mjs';
 
 // --- Should DETECT (true): a real `git commit` invocation in some segment ---
 const DETECT = [
@@ -169,4 +169,127 @@ test('handles non-string input safely', () => {
   assert.equal(isGitCommit(undefined), false);
   assert.equal(isGitCommit(null), false);
   assert.equal(isGitCommit(123), false);
+});
+
+// --- parseCommitForm: classify a commit's effective-content form ------------
+// Drives the review-gate's effective-content hashing. The contract is fail-closed:
+// ONLY a plain commit ({verifiable:true,all:false} -> hash `git diff --cached`) or a
+// -a/--all commit ({verifiable:true,all:true} -> hash `git diff HEAD`) is verifiable;
+// every other form must be {verifiable:false} so the gate cannot fail OPEN on a
+// wrong-but-confident guess. The exotic-form cases below were all surfaced by
+// adversarial review (codex + code-reviewer) as fail-open or self-commit regressions.
+
+const PLAIN = { verifiable: true, all: false };
+const ALL = { verifiable: true, all: true };
+
+test('plain commit -> { all:false } (hash --cached)', () => {
+  for (const cmd of ['git commit', 'git commit -m x', 'git commit -m "a; b | c"',
+                     'git commit -F - ', 'git commit --message=hi', 'git commit -q -s',
+                     'git commit --gpg-sign -m x', 'git commit --allow-empty -m x']) {
+    assert.deepEqual(parseCommitForm(cmd), PLAIN, cmd);
+  }
+});
+
+test('-a / --all -> { all:true } (incl. bundled -am and add&&commit)', () => {
+  for (const cmd of ['git commit -a', 'git commit -am x', 'git commit -a -m x',
+                     'git commit --all -m x', 'git add -A && git commit -am "msg"']) {
+    assert.deepEqual(parseCommitForm(cmd), ALL, cmd);
+  }
+});
+
+test('option VALUES are never mistaken for pathspecs', () => {
+  // The message/value after -m / -am / -F must not become a (blocking) pathspec.
+  assert.deepEqual(parseCommitForm('git commit -am "feat: x"'), ALL);
+  assert.deepEqual(parseCommitForm('git commit -m"glued"'), PLAIN);
+  assert.deepEqual(parseCommitForm('git commit -F msg.txt'), PLAIN);
+});
+
+test('pathspec commits -> verifiable:false (cwd-relative + shell-fragile -> fail-closed)', () => {
+  for (const cmd of ['git commit -m x file.ts', 'git commit -- a.ts b.ts',
+                     'git commit --only -m x src/', 'git commit -m x "src/has space.ts"',
+                     'git commit -m x src/esc\\ aped.ts']) {  // escaped space splits -> still a pathspec
+    assert.equal(parseCommitForm(cmd).verifiable, false, cmd);
+  }
+});
+
+test('git option ABBREVIATIONS of unverifiable forms still fail closed (prefix rule)', () => {
+  // git resolves any unambiguous prefix to the full option; exact-match would fail OPEN.
+  for (const cmd of ['git commit --amen -m x', 'git commit --ame -m x', 'git commit --am -m x',
+                     'git commit --inc foo.ts', 'git commit --incl foo.ts',
+                     'git commit --interac', 'git commit --pathspec-from-fi=l.txt']) {
+    assert.equal(parseCommitForm(cmd).verifiable, false, cmd);
+  }
+});
+
+test('hashing-defeating forms (canonical) -> verifiable:false', () => {
+  for (const cmd of ['git commit --amend', 'git commit --amend --no-edit', 'git commit -a --amend',
+                     'git commit --include foo.ts', 'git commit -i foo.ts', 'git commit -p',
+                     'git commit --interactive', 'git commit --patch -m x',
+                     'git commit --pathspec-from-file=list.txt']) {
+    assert.equal(parseCommitForm(cmd).verifiable, false, cmd);
+  }
+});
+
+test('bash -c siblings / >1 commit per line -> verifiable:false (no fail-open)', () => {
+  assert.equal(parseCommitForm('bash -c "git commit -am x"').verifiable, false);
+  assert.equal(parseCommitForm('git commit -m a && git commit -m b').verifiable, false);
+  // A direct commit beside a wrapped one must NOT be confidently classified.
+  assert.equal(parseCommitForm("git commit -m reviewed && bash -c 'git commit -am leak'").verifiable, false);
+});
+
+test('repo/worktree-redirecting globals -> verifiable:false (wrong-tree hash)', () => {
+  assert.equal(parseCommitForm('git -C /repo commit -m x').verifiable, false);
+  assert.equal(parseCommitForm('git --git-dir=/x commit -m x').verifiable, false);
+  assert.equal(parseCommitForm('git --work-tree /w commit -am x').verifiable, false);
+});
+
+test('plain shell redirections / heredocs are dropped, not read as pathspecs', () => {
+  // Critical: protects the repo self-commit form and plain commits with redirections.
+  assert.deepEqual(parseCommitForm('git commit -m x >out'), PLAIN);
+  assert.deepEqual(parseCommitForm('git commit -m x >> log.txt'), PLAIN);
+  assert.deepEqual(parseCommitForm('git commit -F - < msg.txt'), PLAIN);
+  assert.deepEqual(parseCommitForm("git commit -F - <<'MSG'\nbody line\nMSG"), PLAIN);
+  assert.deepEqual(parseCommitForm('git commit -am x > out'), ALL);
+});
+
+test('&-bearing redirections (2>&1, >&2, &>x) -> verifiable:false (segment-split fail-open)', () => {
+  // lexSegments splits on the lone `&`, which would hide a trailing -a -> fail closed.
+  for (const cmd of ['git commit 2>&1 -a -m x', 'git commit >&2 -a -m x',
+                     'git commit 1>&2 -a -m x', 'git commit &>/dev/null -a -m x',
+                     'git commit -am x >/dev/null 2>&1', 'git commit -m x 2>&1']) {
+    assert.equal(parseCommitForm(cmd).verifiable, false, cmd);
+  }
+  // ...but a quoted & (inside the message) is data, not a redirection.
+  assert.deepEqual(parseCommitForm('git commit -am "fixed 2>&1 bug"'), ALL);
+});
+
+test('repo/index/worktree redirection via env or -c config -> verifiable:false', () => {
+  for (const cmd of ['GIT_DIR=/other/.git git commit -m x',
+                     'GIT_WORK_TREE=/w GIT_DIR=/g git commit -am x',
+                     'GIT_INDEX_FILE=/alt.idx git commit -m x',
+                     'env GIT_DIR=/g git commit -m x',
+                     'git -c core.worktree=/other commit -am x',
+                     'git --config-env=core.worktree=WT commit -m x']) {
+    assert.equal(parseCommitForm(cmd).verifiable, false, cmd);
+  }
+  // A benign -c key (not repo-locating) stays verifiable.
+  assert.deepEqual(parseCommitForm('git -c user.name=A commit -m x'), PLAIN);
+});
+
+test('optional glued-value short flags (-S/-u) are not read as -a; --no-all cancels', () => {
+  assert.deepEqual(parseCommitForm('git commit -Sakey -m x'), PLAIN);   // -S<keyid>, not --all
+  assert.deepEqual(parseCommitForm('git commit -uall -m x'), PLAIN);    // -u<mode>
+  assert.deepEqual(parseCommitForm('git commit -a --no-all -m x'), PLAIN);
+});
+
+test('non-commit / non-string -> verifiable:false', () => {
+  assert.equal(parseCommitForm('git log --grep commit').verifiable, false);
+  assert.equal(parseCommitForm('git status').verifiable, false);
+  assert.equal(parseCommitForm(undefined).verifiable, false);
+  assert.equal(parseCommitForm(123).verifiable, false);
+});
+
+test('wrappers before a direct git commit are seen through', () => {
+  assert.deepEqual(parseCommitForm('sudo git commit -am x'), ALL);
+  assert.deepEqual(parseCommitForm('env FOO=1 git commit -m x'), PLAIN);
 });
