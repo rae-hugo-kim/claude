@@ -26,7 +26,7 @@ const require = createRequire(import.meta.url);
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '..');
 const driftPath = resolve(repoRoot, 'scripts/docs-drift');
-const { computeReachableHooks, refDocStaleSeverity, getRegisteredHookPaths } =
+const { computeReachableHooks, refDocStaleSeverity, getRegisteredHookPaths, closeoutConsistency } =
   require(driftPath);
 
 const HOOK_PREFIX = '.claude/hooks/harness';
@@ -180,4 +180,43 @@ test('real repo: docs-drift exits 0 with no drift', () => {
   assert.equal(result.status, 0, `docs-drift should exit 0; stdout:\n${result.stdout}`);
   assert.match(result.stdout, /\[docs:drift\] OK/, 'expected a clean OK report');
   assert.ok(!/Orphan hook file/.test(result.stdout), 'no orphan-hook warnings expected');
+});
+
+// --- closeoutConsistency: the independent closeout VERIFICATION lane (PR-4) ---
+// Pure check, all WARNING. Catches lapses the best-effort trigger (compr/compush) leaves.
+
+const SCOPE_ALL_CHECKED = '## Acceptance Criteria\n\n- [x] a\n- [x] b\n';
+const SCOPE_SOME_UNCHECKED = '## Acceptance Criteria\n\n- [x] a\n- [ ] b\n';
+
+test('closeoutConsistency: no current-scope.md -> no warnings (nothing tracked)', () => {
+  assert.deepEqual(closeoutConsistency('status: done\n', null), []);
+  assert.deepEqual(closeoutConsistency(null, null), []);
+});
+
+test('closeoutConsistency: scope exists but no active seed -> Orphan', () => {
+  const r = closeoutConsistency(null, SCOPE_SOME_UNCHECKED);
+  assert.equal(r.length, 1);
+  assert.match(r[0].title, /Orphan/);
+});
+
+test('closeoutConsistency: closed seed (done/superseded, incl. quoted) + lingering scope -> half-closed', () => {
+  for (const seed of ['status: done\n', 'status: superseded\n', 'status: "done"\n', "status: 'done'\n"]) {
+    const r = closeoutConsistency(seed, SCOPE_ALL_CHECKED);
+    assert.equal(r.length, 1, seed);
+    assert.match(r[0].title, /half-closed/i, seed);
+  }
+});
+
+test('closeoutConsistency: approved seed + all AC checked -> Closeout pending', () => {
+  const r = closeoutConsistency('status: approved\n', SCOPE_ALL_CHECKED);
+  assert.equal(r.length, 1);
+  assert.match(r[0].title, /Closeout pending/);
+});
+
+test('closeoutConsistency: no warning for mid-task / no-AC / zero-checkbox / draft-all-checked', () => {
+  assert.deepEqual(closeoutConsistency('status: approved\n', SCOPE_SOME_UNCHECKED), []);
+  assert.deepEqual(closeoutConsistency('status: approved\n', '# Scope\n\nno AC here\n'), []);
+  assert.deepEqual(closeoutConsistency('status: approved\n', '## Acceptance Criteria\n\n(none)\n'), []);
+  // draft is not closeout-trackable (trigger closes only `approved`) -> no pending warning:
+  assert.deepEqual(closeoutConsistency('status: draft\n', SCOPE_ALL_CHECKED), []);
 });

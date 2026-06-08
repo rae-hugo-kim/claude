@@ -25,6 +25,7 @@ function main() {
   checkHookRegistration();
   checkReferenceDocs();
   checkReadmeAndIndexRefs();
+  checkCloseoutConsistency();
 
   printReport();
   process.exit(hasFailures() ? 1 : 0);
@@ -711,6 +712,50 @@ function getHookNames(dirPath) {
   );
 }
 
+// Independent VERIFICATION lane for the closeout flow (closeout_contract.md). The
+// trigger lane (compr/compush) is best-effort/agent-run; this checks state CONSISTENCY
+// at pre-push WITHOUT trusting the trigger. All WARNING (low-friction), never FAIL.
+// Pure (no I/O) for unit-testing; the wrapper reads the files.
+//   - Orphan: current-scope.md exists but no active seed (stale tracking artifact).
+//   - Half-closed: seed is done/superseded but current-scope.md wasn't retired.
+//   - Closeout pending: all AC checked under an active seed, but it isn't `done` yet.
+function closeoutConsistency(seedContent, scopeContent) {
+  const out = [];
+  if (scopeContent == null) return out;                 // no tracking artifact -> nothing to verify
+  const m = seedContent != null ? seedContent.match(/^status:\s*["']?(\w+)/m) : null;  // tolerate quoted YAML
+  const status = m ? m[1].toLowerCase() : null;
+  if (status === null) {
+    out.push({ title: 'Orphan current-scope', reason: 'current-scope.md exists but no active seed (seed.yaml absent or has no status) -- stale tracking artifact; run closeout or remove it' });
+    return out;
+  }
+  if (status === 'done' || status === 'superseded') {
+    out.push({ title: 'Closeout incomplete (half-closed)', reason: `seed status:${status} (closed) but current-scope.md was not retired -- closeout should delete it` });
+    return out;
+  }
+  // active seed (draft/approved): complete-but-not-closed? (mirror acceptance-gate AC parse)
+  const acMatch = scopeContent.match(/## Acceptance Criteria\s*\n([\s\S]*?)(?=\n##|\n*$)/i);
+  if (!acMatch) return out;
+  const section = acMatch[1];
+  const total = (section.match(/- \[[ x]\]/g) || []).length;
+  const unchecked = (section.match(/- \[ \]/g) || []).length;
+  // Only `approved` is closeout-trackable (the trigger lane closes only approved seeds);
+  // a `draft` with all AC checked is an odd pre-approval state, not a closeout-pending lapse.
+  if (status === 'approved' && total > 0 && unchecked === 0) {
+    out.push({ title: 'Closeout pending', reason: `all ${total} acceptance criteria are checked but seed status:${status} (not done) -- run closeout (compr/compush) to mark done + retire scope` });
+  }
+  return out;
+}
+
+function checkCloseoutConsistency() {
+  const seedPath = path.join(repoRoot, 'docs/harness/seed.yaml');
+  const scopePath = path.join(repoRoot, 'docs/harness/current-scope.md');
+  const scopeContent = fs.existsSync(scopePath) ? fs.readFileSync(scopePath, 'utf8') : null;
+  const seedContent = fs.existsSync(seedPath) ? fs.readFileSync(seedPath, 'utf8') : null;
+  for (const w of closeoutConsistency(seedContent, scopeContent)) {
+    addIssue(WARNING, w.title, { file: 'docs/harness/current-scope.md', reason: w.reason });
+  }
+}
+
 function addIssue(severity, title, details) {
   const detailEntries = Object.entries(details)
     .filter(([, value]) => value)
@@ -792,4 +837,4 @@ if (require.main === module) {
 
 // Exported for unit tests (tests/docs-drift.test.mjs). When required as a
 // module, main() does not run (guarded above) so the checks have no side effects.
-module.exports = { computeReachableHooks, refDocStaleSeverity, getRegisteredHookPaths };
+module.exports = { computeReachableHooks, refDocStaleSeverity, getRegisteredHookPaths, closeoutConsistency };

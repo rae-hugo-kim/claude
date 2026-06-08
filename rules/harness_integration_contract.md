@@ -25,6 +25,8 @@ The following controls are required when harness is available:
 
 > Scope drift is no longer hook-enforced (scope-gate retired). It is handled by the CLAUDE.md "Surgical Changes" rule + PR review; `out_of_scope` in seed.yaml is advisory prose the agent reads.
 
+> **Task closeout** (`docs/rules/closeout_contract.md`): when a kickoff'd task lands on main (`compr`/`compush`), it is closed out — `seed.yaml` → `status: done`, `current-scope.md` retired, `task_closed` audit event. This is the **trigger lane** (best-effort, agent-run). The **verification lane** is independent: `docs-drift` warns (never fails) on inconsistent closeout state (orphan scope / half-closed / closeout-pending) at pre-push, not trusting the trigger. The acceptance-gate honors closed seeds (`done`/`superseded` → no active AC) and a `wip:`/`[wip]` commit bypasses unmet AC for in-progress checkpoints.
+
 ## Auxiliary Hooks and Orphan Detection
 
 Not every `.mjs` in `.claude/hooks/harness/` is registered in `settings.json` directly. Two groups are intentionally indirect:
@@ -32,7 +34,7 @@ Not every `.mjs` in `.claude/hooks/harness/` is registered in `settings.json` di
 - **Helper modules** (imported by registered hooks, never registered themselves): `git-commit-detect` (shared `isGitCommit` detector used by `commit-gates`, `acceptance-gate`, `backpressure-gate`, `review-gate`), `risk-assess` (risk classification imported by `review-gate` and `backpressure-gate`), `backpressure-patterns` (shared by `backpressure-tracker` and `backpressure-failure-tracker`).
 - **Standalone advisory / lifecycle hooks** (registered, non-blocking): `destructive-guard` (PreToolUse:Bash, scans every command), `mcp-gate` (advisory MCP-call notice), `backpressure-invalidator` (PostToolUse, marks state stale), `harness-version-check` (SessionStart).
 
-`scripts/docs-drift` audits this layout. Its orphan check is **reachability-based**: a hook is "live" if it is registered in `settings.json` **or** reachable from a registered hook via an import / spawn reference (a quoted `*.mjs` literal that resolves to a real harness file). The delegated gates and the helper modules above are therefore live, not orphans. Only a hook that is unregistered **and** unreachable from any registered entry point is flagged — so a genuinely dead file left after a refactor is still caught. docs-drift is wired into `.githooks/pre-push` and blocks a push on FAIL-severity drift (broken links, a reference doc that claims `status: synced` while stale, a registered hook whose file is missing); WARNING-severity issues such as a true orphan do not block.
+`scripts/docs-drift` audits this layout. Its orphan check is **reachability-based**: a hook is "live" if it is registered in `settings.json` **or** reachable from a registered hook via an import / spawn reference (a quoted `*.mjs` literal that resolves to a real harness file). The delegated gates and the helper modules above are therefore live, not orphans. Only a hook that is unregistered **and** unreachable from any registered entry point is flagged — so a genuinely dead file left after a refactor is still caught. docs-drift is wired into `.githooks/pre-push` and blocks a push on FAIL-severity drift (broken links, a reference doc that claims `status: synced` while stale, a registered hook whose file is missing); WARNING-severity issues such as a true orphan, or an inconsistent closeout state (orphan current-scope / half-closed / closeout-pending), do not block.
 
 ## Gate Verification Requirements
 
