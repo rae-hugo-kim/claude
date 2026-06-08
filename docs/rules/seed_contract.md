@@ -47,8 +47,13 @@
 - 수동 편집하지 않는다
 
 ### `status`
-- 허용값: `draft`, `approved`, `superseded`
+- 허용값: `draft`, `approved`, `superseded`, `done`
 - `kickoff` 직후 기본값은 `draft`
+- `done`: **작업 완료(closeout) 종료상태.** 작업이 끝나 main에 도달했을 때 closeout 절차가 `approved → done`으로 마킹하고 `completed: <YYYY-MM-DD>`를 동반한다. `superseded`(다른 seed로 대체됨)와 구분 — `done`은 "끝남", `superseded`는 "교체됨". **둘 다 종료상태라 acceptance-gate는 active AC로 취급하지 않는다**(닫힌 작업의 AC는 새 작업을 막지 않음).
+
+### `completed`
+- 선택 필드. `status: done`일 때만 동반(closeout이 기록).
+- 형식: `YYYY-MM-DD` (작업이 완료되어 main에 도달한 날짜).
 
 ### `goal`
 - 한 문단 또는 짧은 여러 줄 텍스트

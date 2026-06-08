@@ -32,7 +32,8 @@ docs/harness/seed.yaml
 - YAML 파싱 성공
 - 필수 필드 존재
 - `acceptance_criteria` 최소 1개
-- `status`가 `draft` 또는 `approved`
+- `status`가 `draft` 또는 `approved` (active)
+  - `done`/`superseded`(종료상태)면 완료/대체된 작업이므로 seed 무효가 아니라 **새 `kickoff`로 새 작업(새 task_id) 생성**을 유도
 
 실패 시:
 - 바로 중단
