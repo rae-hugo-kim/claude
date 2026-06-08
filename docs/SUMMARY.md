@@ -22,6 +22,7 @@
 - [Seed Contract](rules/seed_contract.md)
 - [Seed Evolution Policy](rules/seed_evolution_policy.md)
 - [Startdev Seed Contract](rules/startdev_seed_contract.md)
+- [Closeout Contract](rules/closeout_contract.md)
 
 # Internal Checklists
 
