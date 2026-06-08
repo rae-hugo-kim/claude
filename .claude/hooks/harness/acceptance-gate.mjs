@@ -70,6 +70,15 @@ if (existsSync(flagFilePath)) {
 // Check 2: seed.yaml AC existence check
 if (existsSync(seedPath)) {
   const seedContent = readFileSync(seedPath, 'utf-8');
+  // A CLOSED seed carries no ACTIVE acceptance criteria: `done` = the task completed
+  // (closeout), `superseded` = replaced by a newer seed. Either way its criteria belong
+  // to a finished/obsolete task and must not gate new, unrelated work. (cf. seed_contract.md)
+  const statusMatch = seedContent.match(/^status:\s*(\w+)/m);
+  const status = statusMatch ? statusMatch[1].toLowerCase() : null;
+  if (status === 'done' || status === 'superseded') {
+    log(`seed.yaml status=${status} (closed), no active AC, allowing`);
+    process.exit(0);
+  }
   const hasAC = /^acceptance_criteria:\s*\n\s+-/m.test(seedContent);
   if (hasAC) {
     log('AC found in seed.yaml, checking completion via flag or scope file checkboxes');

@@ -40,6 +40,9 @@ kickoff 재실행 없이도 seed를 진화시킬 수 있되, 무분별한 변경
 | version을 올리지 않는 수정 | 변경 추적 불가 |
 | reason 없는 수정 | audit에 사유가 없으면 되돌릴 근거도 없음 |
 | status를 approved에서 draft로 되돌리기 | 승인 철회는 kickoff 재실행으로 |
+| 종료상태(`done`/`superseded`)를 `draft`/`approved`로 되돌리기 | 작업 재개는 kickoff 재실행으로(새 task_id) |
+
+**종료 전이**: `approved → done`은 작업 완료 시 **closeout 절차**가 마킹한다(`completed: <date>` 동반). `done`은 종료상태이므로 이후 수정 대상이 아니다(재개는 새 kickoff).
 
 ## 예외: out_of_scope 축소가 필요한 경우
 

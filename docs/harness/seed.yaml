@@ -1,4 +1,6 @@
 name: agent-first-docs-pipeline
+status: done            # closeout (retroactive 2026-06-08): mdBook docs pipeline 완료
+completed: 2026-05-21
 goal: >
   Markdown을 single source of truth로 유지하면서 사람이 읽기 좋은 HTML 뷰어(mdBook)와
   1회성 HTML 산출물 격리 위치(artifacts/)를 함께 갖춘 에이전트 우선 문서 파이프라인 도입.
