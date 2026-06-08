@@ -206,3 +206,117 @@ test('high risk + diff hash uncomputable -> BLOCK (fail-closed)', () => {
     }
   });
 });
+
+// --- effective-content hashing: the hash must cover what the commit CAPTURES ---
+// Closes the gap where `git commit -a` / a pathspec commit pulled in tracked
+// changes the staged-diff hash never saw, letting a stale PASS review match.
+// These repos carry an INITIAL COMMIT so the -a/pathspec forms' `git diff HEAD`
+// has a base (cf. feedback_shell_test_cwd_isolation: explicit cwd, throwaway repo).
+
+const BIG = 'export const x = 1;\n'.repeat(130);   // >100 lines of code -> high risk
+
+function committedRepo() {
+  const dir = mkdtempSync(join(tmpdir(), 'rv-eff-'));
+  const git = (args) => {
+    const r = spawnSync('git', args, { cwd: dir, encoding: 'utf-8' });
+    if (r.status !== 0) throw new Error(`git ${args.join(' ')} failed: ${r.stderr}`);
+  };
+  git(['init', '-q']);
+  git(['config', 'user.email', 't@example.com']);
+  git(['config', 'user.name', 'Test']);
+  for (const rel of ['src/big.ts', 'src/extra.ts']) {
+    mkdirSync(join(dir, 'src'), { recursive: true });
+    writeFileSync(join(dir, rel), 'init\n');
+  }
+  git(['add', '-A']);
+  git(['commit', '-q', '-m', 'init']);
+  return { dir, git };
+}
+
+// Hash exactly as the gate/reviewer do, for an arbitrary diff selector.
+const diffHash = (dir, sel) =>
+  execSync(`git diff ${sel} | shasum -a 256`, { cwd: dir, encoding: 'utf-8' }).trim().split(/\s+/)[0];
+
+function withCommitted(fn) {
+  const { dir, git } = committedRepo();
+  try { return fn(dir, git); } finally { rmSync(dir, { recursive: true, force: true }); }
+}
+
+test('git commit -a + unreviewed UNSTAGED change -> BLOCK (the core gap)', () => {
+  withCommitted((dir, git) => {
+    writeFileSync(join(dir, 'src/big.ts'), BIG);           // staged change A (reviewed)
+    git(['add', 'src/big.ts']);
+    writeReview(dir, `review-${TODAY}-a.md`, `diff-hash: ${diffHash(dir, '--cached')}\nVerdict: PASS\n`);
+    writeFileSync(join(dir, 'src/extra.ts'), 'leak\n');    // change B: tracked, UNSTAGED, unreviewed
+    // -a stages B at commit time -> effective diff (git diff HEAD) != reviewed --cached hash.
+    assert.equal(runGate(dir, 'git commit -am x').status, 2);
+  });
+});
+
+test('plain git commit in the SAME state -> allow (commits only the reviewed staged diff)', () => {
+  withCommitted((dir, git) => {
+    writeFileSync(join(dir, 'src/big.ts'), BIG);
+    git(['add', 'src/big.ts']);
+    writeReview(dir, `review-${TODAY}-b.md`, `diff-hash: ${diffHash(dir, '--cached')}\nVerdict: PASS\n`);
+    writeFileSync(join(dir, 'src/extra.ts'), 'leak\n');    // unstaged: a plain commit ignores it
+    assert.equal(runGate(dir, 'git commit -m x').status, 0);
+  });
+});
+
+test('git commit -a with everything staged (nothing extra unstaged) -> allow', () => {
+  withCommitted((dir, git) => {
+    writeFileSync(join(dir, 'src/big.ts'), BIG);
+    git(['add', 'src/big.ts']);
+    // No unstaged tracked change, so git diff HEAD == git diff --cached == reviewed hash.
+    writeReview(dir, `review-${TODAY}-c.md`, `diff-hash: ${diffHash(dir, '--cached')}\nVerdict: PASS\n`);
+    assert.equal(runGate(dir, 'git commit -am x').status, 0);
+  });
+});
+
+test('pathspec commit -> fail-closed BLOCK (unverifiable form)', () => {
+  withCommitted((dir, git) => {
+    writeFileSync(join(dir, 'src/big.ts'), BIG);           // staged + reviewed
+    git(['add', 'src/big.ts']);
+    writeReview(dir, `review-${TODAY}-d.md`, `diff-hash: ${diffHash(dir, '--cached')}\nVerdict: PASS\n`);
+    writeFileSync(join(dir, 'src/extra.ts'), 'leak\n');    // unstaged, unreviewed
+    // A pathspec commit's content is cwd-relative + shell-fragile, so the form is
+    // unverifiable -> the staged-hash review cannot vouch for it -> fail closed.
+    assert.equal(runGate(dir, 'git commit -m x src/extra.ts').status, 2);
+  });
+});
+
+test('--amend -> fail-closed BLOCK even when a review matches the staged hash', () => {
+  withCommitted((dir, git) => {
+    writeFileSync(join(dir, 'src/big.ts'), BIG);
+    git(['add', 'src/big.ts']);
+    writeReview(dir, `review-${TODAY}-e.md`, `diff-hash: ${diffHash(dir, '--cached')}\nVerdict: PASS\n`);
+    // amend rewrites the prior commit; its effective content can't be statically
+    // hashed, so the form is unverifiable -> high risk fails closed.
+    assert.equal(runGate(dir, 'git commit --amend -m x').status, 2);
+  });
+});
+
+test('option-abbreviation --inc (=--include) smuggling the index -> BLOCK', () => {
+  withCommitted((dir, git) => {
+    writeFileSync(join(dir, 'src/big.ts'), BIG);           // staged + reviewed
+    git(['add', 'src/big.ts']);
+    writeReview(dir, `review-${TODAY}-f.md`, `diff-hash: ${diffHash(dir, '--cached')}\nVerdict: PASS\n`);
+    writeFileSync(join(dir, 'src/extra.ts'), 'leak\n');    // unstaged, unreviewed
+    // `--inc` is git's abbreviation of `--include`, which commits the whole index
+    // (big.ts + extra.ts). Exact-string matching would have classified it plain and
+    // hashed only --cached -> fail OPEN. Prefix matching keeps it unverifiable -> BLOCK.
+    assert.equal(runGate(dir, 'git commit --inc src/extra.ts -m x').status, 2);
+  });
+});
+
+test('self-commit heredoc form (git commit -F - <<MSG) is NOT mis-read as a pathspec -> allow', () => {
+  withCommitted((dir, git) => {
+    // Regression guard: the repo commits via `git commit -F - <<'MSG' … MSG`. The
+    // `<<MSG` heredoc operator must be dropped, not hashed as `git diff HEAD -- '<<MSG'`
+    // (which would empty the diff and wrongly BLOCK every reviewed self-commit).
+    writeFileSync(join(dir, 'src/big.ts'), BIG);
+    git(['add', 'src/big.ts']);
+    writeReview(dir, `review-${TODAY}-g.md`, `diff-hash: ${diffHash(dir, '--cached')}\nVerdict: PASS\n`);
+    assert.equal(runGate(dir, "git commit -F - <<'MSG'\ncommit body\nMSG").status, 0);
+  });
+});

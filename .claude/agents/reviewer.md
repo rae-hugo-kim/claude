@@ -65,6 +65,15 @@ Before writing the review file, compute the diff hash:
 `git diff --cached | shasum -a 256` (or `git diff | shasum -a 256` if nothing staged)
 Include it in the review header as: `diff-hash: <hash>`
 
+The review-gate hashes the EFFECTIVE committed diff. It only verifies two clean forms:
+plain `git commit` → staged diff (`--cached`), and `git commit -a` → all tracked changes
+(`git diff HEAD`). So review exactly what you will commit: stage everything you intend to
+ship before hashing, or a later `git commit -a` that pulls in extra unstaged changes will
+(correctly) fail to match. Every other form — a pathspec commit (`git commit foo.ts`),
+`--amend`, `-i`/`-p`, or a cross-repo `-C` — is treated as UNVERIFIABLE and fails closed on
+high/critical risk; commit with a plain `git commit` of the staged diff, or use the
+`docs/harness/review-skip` escape hatch if you must use one of those forms.
+
 ```markdown
 # Code Review — [date]
 

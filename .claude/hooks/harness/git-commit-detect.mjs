@@ -220,3 +220,200 @@ function anySegmentIsCommit(cmd, depth) {
 export function isGitCommit(command) {
   return anySegmentIsCommit(command, 0);
 }
+
+// --- commit FORM parsing (for review-gate effective-content hashing) ---------
+// isGitCommit answers "does this line run a commit?"; parseCommitForm answers
+// "can the review-gate statically hash what this commit will capture, and how?"
+// so the gate hashes the EFFECTIVE committed diff instead of only the staged diff.
+// This closes the gap where `git commit -a` pulled in tracked changes the staged
+// hash never saw, letting a stale PASS review match the wrong content.
+//
+// parseCommitForm(command) -> { verifiable:true, all:bool } | { verifiable:false }
+//   verifiable:true  => the committed content is exactly one of two diffs in the
+//                       hook's cwd: all=true -> `git diff HEAD` (a -a/--all commit
+//                       captures every tracked change); else -> `git diff --cached`
+//                       (a plain commit captures the index).
+//   verifiable:false => the content cannot be reproduced by a fixed diff in this
+//                       cwd, so the gate fails closed (block on high/critical;
+//                       review-skip is the escape hatch). This covers, deliberately:
+//                         • pathspec commits (`git commit foo.ts`) — the path set is
+//                           shell-fragile (escapes, globs) and cwd-relative;
+//                         • --amend / --include(-i) / --interactive(-p) /
+//                           --pathspec-from-file — non-index or interactive content;
+//                         • a commit behind bash -c, or >1 commit in one line;
+//                         • a `&`-bearing shell redirection (`2>&1`, `>&2`, `&>x`):
+//                           the reused lexer splits on its lone `&`, which would shred
+//                           the arg list and hide a trailing `-a` — so we fail closed;
+//                         • repo/worktree/index redirection — repo-redirecting globals
+//                           (-C / --git-dir / --work-tree / --namespace), the matching
+//                           GIT_DIR / GIT_WORK_TREE / GIT_INDEX_FILE / GIT_NAMESPACE /
+//                           GIT_COMMON_DIR env assignments, and `-c core.worktree|bare|
+//                           gitdir` / `--config-env` — each targets another tree the
+//                           cwd diff would mis-hash.
+//
+// Safety-gate bias (as in isGitCommit): only the two cleanly-reproducible forms are
+// verifiable; ANYTHING else falls into verifiable:false (fail-closed), never a
+// wrong-but-confident plain/all classification (which would fail OPEN). Long options
+// are matched the way git resolves them — by unambiguous PREFIX — so `--amen` /
+// `--inc` cannot sneak past the unverifiable set. Two rounds of adversarial review
+// (codex + code-reviewer) drove this: exact-string option matching, pathspec hashing,
+// ignoring shell redirections / bash-c siblings, and the `&`-redirection segment split
+// were each a fail-open or a self-commit regression.
+//
+// Known NON-ADVERSARIAL limitations (consistent with isGitCommit's stated model —
+// these are wrong-tree hashes or detection misses, not honored here):
+//   • a `cd`/`pushd` to a DIFFERENT repo before the commit (`cd ../other && git commit`)
+//     — same-repo cd is safe and common, so blanket-blocking it is pure friction;
+//   • `env -C`/`--chdir` cwd changes, and a pathspec quoted to look like a redirection
+//     (`git commit -- '>f.ts'`) — tokenize() discards the quote, an absurd filename;
+//   • forms isGitCommit itself does not detect ($(…) / `env -S` / leading `>out …` /
+//     process substitution) bypass this gate upstream — see isGitCommit's header.
+
+// git commit options that consume a SEPARATE value token (long form). Excludes
+// --gpg-sign / -S: their <keyid> is optional and attaches only with `=`, so a
+// following token is NOT their value.
+const COMMIT_LONG_VALUE_OPT = new Set(['--message', '--file', '--author', '--date',
+  '--template', '--reuse-message', '--reedit-message', '--fixup', '--squash',
+  '--trailer', '--cleanup']);
+// Long options that defeat static effective-content hashing -> unverifiable. Matched
+// by git's unambiguous-prefix rule (see isUnverifiableLong), so abbreviations count.
+const COMMIT_UNVERIFIABLE_LONG = ['--amend', '--include', '--interactive', '--patch',
+  '--pathspec-from-file'];
+// Short value-taking commit flags; may be the tail of a bundle (`-am "msg"`).
+const COMMIT_SHORT_VALUE = new Set(['m', 'F', 'C', 'c', 't']);
+// git global options that redirect to another repo/worktree/dir: a cwd diff would
+// hash the wrong tree, so any commit carrying one is unverifiable.
+const GIT_REPO_REDIRECT_OPT = new Set(['-C', '--git-dir', '--work-tree', '--namespace']);
+// Same, via the environment: a leading `GIT_DIR=… git commit` retargets the repo.
+const GIT_REPO_REDIRECT_ENV = /^GIT_(DIR|WORK_TREE|INDEX_FILE|NAMESPACE|COMMON_DIR)=/;
+// `-c <key>` / `--config-env` keys that move the repo root/worktree/index.
+const GIT_REPO_REDIRECT_CONFIG = /^core\.(worktree|bare|git-?dir|common-?dir)\b/i;
+
+// True if the command contains an unquoted `&` that is part of a shell redirection
+// (`2>&1`, `>&2`, `<&3`, `&>file`): the `&` is adjacent to a `<`/`>`. The reused
+// lexSegments() treats any lone `&` as a control operator and splits on it, which
+// would shred a commit's arg list (hiding a later `-a`); detecting it lets us fail
+// closed before that happens. Quote-aware; not heredoc-aware, so a commit message
+// body literally containing `2>&1` fails closed too (rare, and safe).
+function hasAmpRedirection(cmd) {
+  let q = null;
+  for (let i = 0; i < cmd.length; i++) {
+    const c = cmd[i];
+    if (q) { if (c === q) q = null; else if (q === '"' && c === '\\') i++; continue; }
+    if (c === "'" || c === '"') { q = c; continue; }
+    if (c === '\\') { i++; continue; }
+    if (c === '&' && (cmd[i - 1] === '>' || cmd[i - 1] === '<' || cmd[i + 1] === '>')) return true;
+  }
+  return false;
+}
+
+// True when `name` (a long option as typed, sans `=value`) resolves to one of the
+// unverifiable options under git's unambiguous-prefix rule: `name` is a prefix of
+// (or equal to) such an option. An abbreviation that is ALSO a prefix of some safe
+// option is ambiguous and git itself rejects it (no commit runs), so treating it as
+// unverifiable only ever errs toward blocking — never toward a false allow.
+const isUnverifiableLong = (name) =>
+  COMMIT_UNVERIFIABLE_LONG.some((opt) => opt.startsWith(name));
+
+// tokenize() is quote-aware but NOT redirection-aware, so shell redirections survive
+// as tokens (`>out`, `2>&1`, `<`, `<<MSG`, `<<'EOF'`→`<<EOF`). They are NOT git args
+// and must be dropped before classification — otherwise the repo's own self-commit
+// `git commit -F - <<'MSG'` would read `<<MSG` as a pathspec and mis-hash. Returns
+// null (not a redirection) or { standalone } where standalone means the operator has
+// no glued operand and the NEXT token is its target.
+function redirToken(t) {
+  const m = /^(?:\d+|&)?(?:>>|>\||>&|<<-|<<<|<<|<>|<|>)/.exec(t);
+  if (!m) return null;
+  return { standalone: t.length === m[0].length };
+}
+
+// Inspect one segment. Returns null (not a commit here), { unverifiable:true } (an
+// indirect/bash-c commit or a repo-redirecting global), or { args } (the tokens after
+// `commit` in a direct `git … commit`).
+function commitSegInfo(seg) {
+  const toks = tokenize(seg);
+  const pi = programIndex(toks);
+  if (pi < 0) return null;
+  // A repo-redirecting env assignment before the program (`GIT_DIR=… git commit`,
+  // also `env GIT_DIR=… git commit`) makes the cwd diff hash the wrong tree.
+  if (toks.slice(0, pi).some((t) => GIT_REPO_REDIRECT_ENV.test(t))) {
+    return segmentIsGitCommit(seg, 0) ? { unverifiable: true } : null;
+  }
+  const rest = toks.slice(pi);
+  if (basename(rest[0]) !== 'git') {
+    // A non-git program here may still wrap a commit (e.g. bash -c "git commit").
+    return segmentIsGitCommit(seg, 0) ? { unverifiable: true } : null;
+  }
+  let i = 1, redirect = false;                        // skip git global options
+  while (i < rest.length) {
+    const t = rest[i];
+    if (!t.startsWith('-')) break;
+    if (GIT_TERMINAL_OPT.has(t) || t.startsWith('--list-cmds')) return null;
+    const nameOnly = t.includes('=') ? t.slice(0, t.indexOf('=')) : t;
+    if (GIT_REPO_REDIRECT_OPT.has(nameOnly)) redirect = true;
+    if (nameOnly === '--config-env') redirect = true;                 // -> alternate config
+    if (t === '-c' && GIT_REPO_REDIRECT_CONFIG.test(rest[i + 1] || '')) redirect = true;
+    if (GIT_OPT_WITH_ARG.has(t)) { i += 2; continue; }
+    i += 1;
+  }
+  if (rest[i] !== 'commit') return null;
+  if (redirect) return { unverifiable: true };
+  return { args: rest.slice(i + 1) };
+}
+
+// Classify the post-`commit` argument tokens. Any pathspec, interactive/include
+// form, or unverifiable option collapses to { verifiable:false }.
+function classifyCommitArgs(args) {
+  let all = false, endOpts = false, hasPathspec = false;
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i];
+    const r = redirToken(a);                          // drop shell redirections first
+    if (r) { if (r.standalone) i += 1; continue; }    // (a standalone operator eats its target)
+    if (endOpts) { hasPathspec = true; continue; }
+    if (a === '--') { endOpts = true; continue; }
+    if (a.startsWith('--')) {
+      const eq = a.indexOf('=');
+      const name = eq >= 0 ? a.slice(0, eq) : a;
+      if (isUnverifiableLong(name)) return { verifiable: false };
+      if (name === '--all') { all = true; continue; }
+      if (name === '--no-all') { all = false; continue; }
+      if (name === '--only') continue;                // --only without a pathspec is a git error; harmless
+      if (COMMIT_LONG_VALUE_OPT.has(name) && eq < 0) i += 1;  // consume separate value
+      continue;
+    }
+    if (a.startsWith('-') && a.length > 1) {          // short flag bundle
+      for (let j = 1; j < a.length; j++) {
+        const ch = a[j];
+        if (ch === 'a') { all = true; continue; }
+        if (ch === 'i' || ch === 'p') return { verifiable: false };
+        if (ch === 'S' || ch === 'u') break;          // optional GLUED value: rest isn't flags
+        if (COMMIT_SHORT_VALUE.has(ch)) {             // value-taker ends the bundle
+          if (j + 1 >= a.length) i += 1;              // value is the NEXT token
+          break;                                      // (a glued value needs no consume)
+        }
+        // other boolean short flag (o/e/q/v/n/s/z/…) -> ignored
+      }
+      continue;
+    }
+    hasPathspec = true;                               // bare positional token -> pathspec
+  }
+  if (hasPathspec) return { verifiable: false };      // pathspec commits: fail-closed
+  return { verifiable: true, all };
+}
+
+export function parseCommitForm(command) {
+  if (!command || typeof command !== 'string') return { verifiable: false };
+  // A `&`-bearing redirection would split mid-args in lexSegments below and could
+  // hide a trailing -a; fail closed before trusting the segmentation.
+  if (hasAmpRedirection(command)) return { verifiable: false };
+  let found = null;
+  for (const seg of lexSegments(command)) {
+    const info = commitSegInfo(seg);
+    if (!info) continue;
+    if (info.unverifiable) return { verifiable: false };
+    if (found) return { verifiable: false };          // >1 direct commit in one line
+    found = info.args;
+  }
+  if (!found) return { verifiable: false };
+  return classifyCommitArgs(found);
+}
