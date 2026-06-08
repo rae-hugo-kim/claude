@@ -112,7 +112,6 @@ PATHS=(
   ".claude/skills/compush"
   ".claude/skills/tidy"
   ".claude/skills/harness-check"
-  ".claude/skills/code-review"
   ".claude/skills/receiving-code-review"
   ".claude/skills/brainstorm"
   ".claude/skills/design-mockup"

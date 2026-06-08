@@ -69,7 +69,6 @@ OMC, RTK, 범용 MCP 서버(context7, serena, exa, browser-tools), docs 뷰어 �
 │   │   ├── compush/           커밋+푸시
 │   │   ├── sum/               세션 요약
 │   │   ├── tidy/              리팩토링
-│   │   ├── code-review/       코드 리뷰 (3-pass)
 │   │   ├── receiving-code-review/  리뷰 수용 가이드
 │   │   ├── harness-check/     하네스 드리프트 체크 + sync + audit
 │   │   ├── design-mockup/     인터랙티브 HTML mockup 생성
@@ -100,7 +99,6 @@ OMC, RTK, 범용 MCP 서버(context7, serena, exa, browser-tools), docs 뷰어 �
 | `/compr` | 브랜치 → 커밋 → 푸시 → PR |
 | `/compush` | 커밋 → 푸시 (PR 없이) |
 | `/tidy` | Kent Beck의 Tidy First 리팩토링 |
-| `/code-review` | 변경 사항 3-pass 적대적 리뷰 |
 | `/receiving-code-review` | 받은 리뷰 의견 검증·반영 |
 | `/harness-check` | 하네스 버전 드리프트 체크 + 원격에서 자동 sync (`--audit`로 7-카테고리 품질 점수) |
 | `/design-mockup` | 슬라이더/노브로 파라미터 튜닝 가능한 단일 HTML mockup 생성 (`artifacts/design/`) |

@@ -69,7 +69,6 @@ Creates a new GitHub repository based on this template.
 │   │   ├── compush/               Commit + push
 │   │   ├── sum/                   Session summary
 │   │   ├── tidy/                  Refactoring
-│   │   ├── code-review/           Code review (3-pass)
 │   │   ├── receiving-code-review/ Review intake guide
 │   │   ├── harness-check/         Harness drift check + sync + audit
 │   │   ├── design-mockup/         Interactive HTML mockup generator
@@ -100,7 +99,6 @@ Creates a new GitHub repository based on this template.
 | `/compr` | Branch → commit → push → PR |
 | `/compush` | Commit → push (no PR) |
 | `/tidy` | Refactor with Kent Beck's Tidy First |
-| `/code-review` | 3-pass adversarial review of pending changes |
 | `/receiving-code-review` | Verify and apply review feedback |
 | `/harness-check` | Check harness drift and auto-sync from the source remote (`--audit` for 7-category quality score) |
 | `/design-mockup` | Generate a single-file HTML mockup with sliders/knobs for design parameter tuning (`artifacts/design/`) |
