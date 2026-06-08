@@ -55,6 +55,12 @@ test('seed status:superseded -> allow (replaced task, AC obsolete)', () => {
   });
 });
 
+test('quoted status ("done") is recognized as closed -> allow', () => {
+  withDir({ 'seed.yaml': `status: "done"\n${AC_BLOCK}`, 'current-scope.md': UNCHECKED_SCOPE }, (dir) => {
+    assert.equal(runGate(dir).status, 0);
+  });
+});
+
 // --- regression: an ACTIVE (approved) seed still enforces ---
 
 test('seed status:approved + unchecked current-scope -> BLOCK (active task still gated)', () => {

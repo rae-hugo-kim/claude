@@ -73,7 +73,7 @@ if (existsSync(seedPath)) {
   // A CLOSED seed carries no ACTIVE acceptance criteria: `done` = the task completed
   // (closeout), `superseded` = replaced by a newer seed. Either way its criteria belong
   // to a finished/obsolete task and must not gate new, unrelated work. (cf. seed_contract.md)
-  const statusMatch = seedContent.match(/^status:\s*(\w+)/m);
+  const statusMatch = seedContent.match(/^status:\s*["']?(\w+)/m);  // tolerate quoted YAML
   const status = statusMatch ? statusMatch[1].toLowerCase() : null;
   if (status === 'done' || status === 'superseded') {
     log(`seed.yaml status=${status} (closed), no active AC, allowing`);
