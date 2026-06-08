@@ -6,7 +6,7 @@
 
 import { readFileSync, existsSync, appendFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
-import { isGitCommit } from './git-commit-detect.mjs';
+import { isGitCommit, isWipCommit } from './git-commit-detect.mjs';
 
 // Use project-local state directory
 function getStateDir(cwd) {
@@ -128,6 +128,17 @@ if (checkboxes.length === 0) {
 
 if (unchecked.length === 0) {
   log('All acceptance criteria met, allowing');
+  process.exit(0);
+}
+
+// WIP commits are intentional in-progress checkpoints. Without this, every commit
+// during a tracked task is blocked until ALL AC are checked, pushing people to the
+// blunt `acceptance-done` flag (which disables the gate). A `wip:`/`[wip]` marker in
+// the message lets intermediate commits through while keeping the gate armed for the
+// real (non-WIP) commit. (cf. closeout_contract.md — closeout runs on completion.)
+if (isWipCommit(command)) {
+  log(`WIP commit, ${unchecked.length} unchecked criteria but allowing (wip marker)`);
+  console.error(`HARNESS WARNING: WIP commit with ${unchecked.length} unmet acceptance criteria (allowed by wip marker).`);
   process.exit(0);
 }
 

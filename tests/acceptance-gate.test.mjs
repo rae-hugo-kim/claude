@@ -63,6 +63,36 @@ test('seed status:approved + unchecked current-scope -> BLOCK (active task still
   });
 });
 
+// --- WIP bypass: an in-progress commit may pass unmet AC (still warns) ---
+
+test('approved + unchecked + `wip:` message -> allow (WIP bypass), still warns', () => {
+  withDir({ 'seed.yaml': `status: approved\n${AC_BLOCK}`, 'current-scope.md': UNCHECKED_SCOPE }, (dir) => {
+    const r = runGate(dir, 'git commit -m "wip: partway through"');
+    assert.equal(r.status, 0);
+    assert.match(r.stderr, /WIP commit/i);
+  });
+});
+
+test('approved + unchecked + `[wip]` tag (bundled -am) -> allow', () => {
+  withDir({ 'seed.yaml': `status: approved\n${AC_BLOCK}`, 'current-scope.md': UNCHECKED_SCOPE }, (dir) => {
+    assert.equal(runGate(dir, 'git commit -am "[wip] checkpoint"').status, 0);
+  });
+});
+
+test('approved + unchecked + a NON-wip message -> BLOCK (bypass is marker-gated)', () => {
+  withDir({ 'seed.yaml': `status: approved\n${AC_BLOCK}`, 'current-scope.md': UNCHECKED_SCOPE }, (dir) => {
+    assert.equal(runGate(dir, 'git commit -m "feat: done for real"').status, 2);
+  });
+});
+
+test('precedence: a closed (done) seed + wip message exits via the closed-seed path, not wip', () => {
+  withDir({ 'seed.yaml': `status: done\n${AC_BLOCK}`, 'current-scope.md': UNCHECKED_SCOPE }, (dir) => {
+    const r = runGate(dir, 'git commit -m "wip: x"');
+    assert.equal(r.status, 0);
+    assert.doesNotMatch(r.stderr, /WIP commit/i);   // closed-seed early-exit precedes the wip bypass
+  });
+});
+
 test('seed status:approved + all AC checked -> allow', () => {
   withDir({ 'seed.yaml': `status: approved\n${AC_BLOCK}`, 'current-scope.md': '## Acceptance Criteria\n\n- [x] done\n' }, (dir) => {
     assert.equal(runGate(dir).status, 0);

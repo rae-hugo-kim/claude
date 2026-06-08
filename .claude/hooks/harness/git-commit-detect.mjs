@@ -417,3 +417,43 @@ export function parseCommitForm(command) {
   if (!found) return { verifiable: false };
   return classifyCommitArgs(found);
 }
+
+// --- WIP marker detection (for acceptance-gate's in-progress bypass) ---------
+// A WIP commit is an intentional mid-task checkpoint: the acceptance-gate should
+// not force all AC checked (nor the blunt acceptance-done flag) for every such
+// commit. We detect a `wip:` / `[wip]` marker in the commit MESSAGE, taken from
+// -m / --message (separate, `=`, glued `-mmsg`, or bundled `-am "msg"`) of the
+// ACTUAL commit segment(s) — scoped via lexSegments/commitSegInfo, NOT a whole-line
+// scan, so a `-m "wip…"` in a comment / heredoc body / sibling command (`grep -m`)
+// does not false-trigger. A message via -F / heredoc carries no -m token -> not WIP
+// (the gate applies normally; use acceptance-done for those). Multi-commit lines
+// bypass only if EVERY commit is WIP (a non-WIP completion commit must still gate).
+// Best-effort, not a safety gate.
+// WIP_MARKER: subject begins with the word "wip" (wip:, wip(x):, WIP …) OR carries a
+// [wip] tag. `wip\b` requires a full word, so "wiping"/"wipe" do NOT match.
+const WIP_MARKER = /(^\s*wip\b)|(\[wip\])/i;
+
+// Scan one commit's post-`commit` arg tokens for a WIP marker in -m/--message.
+function commitArgsHaveWip(args) {
+  for (let i = 0; i < args.length; i++) {
+    const t = args[i];
+    if (t === '-m' || t === '--message') { if (WIP_MARKER.test(args[i + 1] || '')) return true; i++; continue; }
+    if (t.startsWith('--message=')) { if (WIP_MARKER.test(t.slice(10))) return true; continue; }
+    if (t.startsWith('-m') && !t.startsWith('--')) { if (WIP_MARKER.test(t.slice(2))) return true; continue; } // -mmsg
+    if (/^-[A-Za-z]*m$/.test(t)) { if (WIP_MARKER.test(args[i + 1] || '')) return true; i++; continue; }        // -am "msg"
+  }
+  return false;
+}
+
+export function isWipCommit(command) {
+  if (!command || typeof command !== 'string') return false;
+  let sawCommit = false;
+  for (const seg of lexSegments(command)) {
+    const info = commitSegInfo(seg);
+    if (!info) continue;                                  // not a commit segment
+    if (info.unverifiable || !info.args) return false;    // unreadable commit (bash -c / redirect) -> don't bypass
+    sawCommit = true;
+    if (!commitArgsHaveWip(info.args)) return false;       // a non-WIP commit present -> don't bypass
+  }
+  return sawCommit;
+}

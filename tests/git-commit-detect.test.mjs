@@ -15,7 +15,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { isGitCommit, parseCommitForm } from '../.claude/hooks/harness/git-commit-detect.mjs';
+import { isGitCommit, parseCommitForm, isWipCommit } from '../.claude/hooks/harness/git-commit-detect.mjs';
 
 // --- Should DETECT (true): a real `git commit` invocation in some segment ---
 const DETECT = [
@@ -292,4 +292,37 @@ test('non-commit / non-string -> verifiable:false', () => {
 test('wrappers before a direct git commit are seen through', () => {
   assert.deepEqual(parseCommitForm('sudo git commit -am x'), ALL);
   assert.deepEqual(parseCommitForm('env FOO=1 git commit -m x'), PLAIN);
+});
+
+// --- isWipCommit: a wip:/[wip] marker in the -m/--message text ---------------
+// Drives the acceptance-gate's in-progress bypass. Best-effort over -m forms;
+// a message via -F/heredoc is not inspected (-> false).
+
+test('isWipCommit: true for a wip:/[wip] marker across -m forms', () => {
+  for (const cmd of ['git commit -m "wip: partway"', 'git commit -m "WIP foo"',
+                     'git commit -m "wip(scope): x"', 'git commit -am "[wip] checkpoint"',
+                     'git commit -mwip:glued', 'git commit -m "feat" -m "wip: body"',
+                     'git add -A && git commit -m "wip: x"', 'git commit --message="[WIP] x"']) {
+    assert.equal(isWipCommit(cmd), true, cmd);
+  }
+});
+
+test('isWipCommit: false for non-wip messages and uninspectable forms', () => {
+  for (const cmd of ['git commit -m "feat: done"', 'git commit -m "wiping the cache"',
+                     'git commit -m "fix wip handling later"', 'git commit -F msg.txt',
+                     "git commit -F - <<'MSG'\nwip: x\nMSG", 'git status', '']) {
+    assert.equal(isWipCommit(cmd), false, cmd);
+  }
+  assert.equal(isWipCommit(undefined), false);
+  assert.equal(isWipCommit(123), false);
+});
+
+test('isWipCommit: scoped to the commit segment — no whole-line false-positives', () => {
+  // a `wip` -m OUTSIDE the actual commit must NOT bypass:
+  assert.equal(isWipCommit('git commit -m "feat: real" # -m "wip: x"'), false);    // comment dropped
+  assert.equal(isWipCommit('grep -m "wip: x" file && git commit -m "feat: real"'), false); // sibling -m
+  assert.equal(isWipCommit('git commit -m "wip: x" && git commit -m "feat: real"'), false); // a non-wip commit present
+  assert.equal(isWipCommit("bash -c \"git commit -m 'wip: x'\""), false);          // unreadable (bash -c) -> don't bypass
+  // multi-commit where EVERY commit is wip -> bypass:
+  assert.equal(isWipCommit('git commit -m "wip: a" && git commit -m "wip: b"'), true);
 });
