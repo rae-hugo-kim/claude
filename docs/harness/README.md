@@ -31,6 +31,7 @@
 - `docs/rules/seed_contract.md`
 - `docs/rules/kickoff_output_contract.md`
 - `docs/rules/startdev_seed_contract.md`
+- `docs/rules/closeout_contract.md`
 - `docs/checklists/kickoff_rubric_checklist.md`
 - `docs/templates/seed.template.yaml`
 - `docs/templates/rubric-report.template.md`
