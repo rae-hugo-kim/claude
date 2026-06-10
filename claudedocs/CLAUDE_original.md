@@ -1,8 +1,8 @@
 <!-- policy-sync-warning:start -->
 warning_type: reference_only
 non_normative_reference_only: true
-last_sync_date: 2026-06-04
-status: synced
+last_sync_date: 2026-06-10
+status: stale
 source_of_truth: ../CLAUDE.md
 source_commit_hash: 614b3fd6e801e264593225b25699d3381647dd96
 <!-- policy-sync-warning:end -->
@@ -229,7 +229,6 @@ Do not execute or propose the following without explicit user request and approv
 | MCP Server | Policy |
 |------------|--------|
 | **Context7** | MUST use for new external APIs/SDKs, dependencies, version-sensitive syntax |
-| **Serena** | SHOULD use for symbol navigation and refactoring; MUST use the `--context claude-code` flag |
 | **Supabase** | MUST use migrations for DDL; MAY use direct SQL for queries |
 | **Web Search** | SHOULD use for current events, errors, latest docs |
 
@@ -250,18 +249,16 @@ Invocation: include `use context7` in the prompt, or specify `use library /org/p
 
 ## Agent Routing Policy (Trigger-Based)
 
-Delegate specialized work to the agent best suited for it. These triggers complement the MCP policy above — the MCP policy decides *which server* an agent reaches for; this policy decides *which agent* runs.
+Delegate verification work to the standing agents below. Exploration, research, and implementation are handled directly (or by built-in agents such as Explore/general-purpose); only the two verification lanes carry standing delegation triggers.
 
 | Agent | When to Delegate |
 |-------|------------------|
-| **researcher** (Exa) | SHOULD delegate for external docs, web search, and error lookups |
-| **db-worker** (Supabase) | MUST delegate for DDL changes and schema operations |
-| **refactorer** (Serena) | SHOULD delegate for symbol renames across 3+ files or impact analysis |
-| **full-context** (all MCP) | SHOULD delegate when 2+ MCP domains intersect in one task |
 | **reviewer** | SHOULD delegate for code changes ≥10 lines or logic changes; runs a 3-pass adversarial review (self + Codex + OMC) |
 | **verifier** | MUST delegate before claiming task completion when acceptance criteria exist |
 
-See `rules/agent_routing.md` for the full routing rules.
+The MCP delegation matrix (researcher/db-worker/refactorer/full-context) was retired
+2026-06 after usage measurement showed zero delegations across all projects; see
+`rules/agent_routing.md` for the retirement record and reinstatement trigger.
 
 ---
 

@@ -24,7 +24,7 @@ set -euo pipefail
 # Rubric version: bump whenever scoring rules change (new category, threshold
 # shift, weighting change). Consumers (e.g. harness-version-bump.sh) tag each
 # stored audit row with this so series can be split on rule evolution.
-RUBRIC_VERSION="1"
+RUBRIC_VERSION="2"
 
 ROOT="$(pwd)"
 TERSE=0
@@ -118,10 +118,14 @@ emit_category() {
 score_tool_coverage() {
   local agents
   agents=$(count_files ".claude/agents")
-  if (( agents >= 5 )); then
-    award tool_coverage 3 ".claude/agents/ has $agents agents (>=5)"
+  # Rubric v2: the >=5 threshold encoded the retired MCP delegation matrix
+  # (researcher/db-worker/refactorer/full-context, removed 2026-06 after zero
+  # measured delegations). Full credit now means the verification pair
+  # (reviewer + verifier) is present.
+  if (( agents >= 2 )); then
+    award tool_coverage 3 ".claude/agents/ has $agents agents (>=2; verification pair)"
   elif (( agents > 0 )); then
-    award tool_coverage 1 ".claude/agents/ has $agents agents (<5)"
+    award tool_coverage 1 ".claude/agents/ has $agents agents (<2)"
   else
     skip tool_coverage ".claude/agents/"
   fi

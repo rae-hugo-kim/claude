@@ -101,8 +101,8 @@ flowchart TD
 ```
 메인 에이전트가 구현 계획 수립
   → 복잡하면 OMC planner 활용 가능
-  → 외부 정보 필요하면 researcher 호출 (Exa)
-  → DB 스키마 확인 필요하면 db-worker 호출 (Supabase)
+  → 외부 정보 필요하면 WebSearch/Explore 직접 수행
+  → DB 스키마 확인 필요하면 Supabase MCP 직접 조회
   
   이 단계에서는 Edit/Write를 안 하므로 게이트에 안 걸림
 ```
@@ -124,9 +124,9 @@ flowchart TD
   → 각 서브에이전트도 같은 hook chain을 탐 (같은 .omc/harness-state/ 공유)
 
 MCP 필요 시:
-  → DB 작업 → db-worker
-  → 리팩터링 → refactorer  
-  → 복합 작업 → full-context
+  → DB 작업 → Supabase MCP 직접 호출 (DDL은 migration)
+  → 리팩터링 → Edit + OMC LSP로 참조 선확인
+  (구 MCP 위임 매트릭스는 2026-06 폐기 — rules/agent_routing.md 참조)
 ```
 
 ### 2.5 검증
@@ -235,13 +235,13 @@ flowchart LR
 
 ## 4. 서브에이전트 호출 타이밍
 
+(2026-06: researcher/db-worker/refactorer/full-context 위임 매트릭스 폐기 —
+외부 정보·DB는 메인 에이전트가 직접 수행. `rules/agent_routing.md`의 폐기 기록 참조.)
+
 ```mermaid
 sequenceDiagram
     participant U as 사용자
     participant M as 메인 에이전트
-    participant R as researcher
-    participant DB as db-worker
-    participant RF as refactorer
     participant RV as reviewer
     participant VF as verifier
     participant OE as Opus (범용)
@@ -249,22 +249,18 @@ sequenceDiagram
     U->>M: "결제 기능 만들어줘"
     Note over M: 킥오프 → seed.yaml 생성
 
-    M->>R: "Stripe API 최신 스펙 확인"
-    R-->>M: Stripe v2024.12 webhook 스펙 + 문서 URL
-
-    M->>DB: "payments 테이블 스키마 확인"
-    DB-->>M: 현재 스키마 + RLS 정책
+    M->>M: WebSearch — Stripe API 최신 스펙 확인
+    M->>M: Supabase MCP — payments 테이블 스키마 확인
 
     Note over M: 계획 수립 완료
 
     par 병렬 구현
         M->>OE: "webhook handler 구현"
         M->>OE: "결제 상태 enum 추가"
-        M->>DB: "payments 테이블 migration 생성"
+        M->>M: Supabase MCP — payments migration 적용
     end
     OE-->>M: handler 완료
     OE-->>M: enum 완료
-    DB-->>M: migration SQL
 
     Note over M: 구현 완료 → 검증 단계
 

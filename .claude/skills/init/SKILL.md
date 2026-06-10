@@ -150,7 +150,7 @@ git push
 3. `/startdev` — TDD 기반 구현 시작
 
 ### Included
-- 8 skills: bootstrap, init, kickoff, startdev, sum, compr, compush, tidy
+- 7 skills: bootstrap, init, kickoff, startdev, sum, compr, compush
 - 6 core workflow hooks: context-gate, acceptance-gate, backpressure-gate, kickoff-detector, read-tracker, backpressure-tracker (the full template registers more)
 - Rules, templates, glossary
 ```
