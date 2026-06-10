@@ -110,7 +110,6 @@ PATHS=(
   ".claude/skills/sum"
   ".claude/skills/compr"
   ".claude/skills/compush"
-  ".claude/skills/tidy"
   ".claude/skills/harness-check"
   ".claude/skills/receiving-code-review"
   ".claude/skills/brainstorm"

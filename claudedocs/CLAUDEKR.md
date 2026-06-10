@@ -1,8 +1,8 @@
 <!-- policy-sync-warning:start -->
 warning_type: reference_only
 non_normative_reference_only: true
-last_sync_date: 2026-06-04
-status: synced
+last_sync_date: 2026-06-10
+status: stale
 source_of_truth: ../CLAUDE.md
 source_commit_hash: 614b3fd6e801e264593225b25699d3381647dd96
 <!-- policy-sync-warning:end -->
@@ -116,17 +116,13 @@ Harness 검증 계약 세부 사항: [`rules/harness_integration_contract.md`](.
 
 - 전체 정책은 [`rules/mcp_policy.md`](../rules/mcp_policy.md)를 참조합니다.
 - **Context7**: 새로운 외부 API/SDK, 의존성, 버전 민감 문법에는 MUST 사용.
-- **Serena**: 심볼 탐색, 리팩토링에 SHOULD 사용. `--context claude-code` 플래그를 MUST 사용.
 - **Supabase**: DDL에는 MUST 마이그레이션 사용; 쿼리에는 MAY 직접 SQL 사용.
 - **Web Search**: 최신 이벤트, 오류, 최신 문서에 SHOULD 사용.
 
 ## 에이전트 라우팅 정책 (트리거 기반)
 
-- 전체 라우팅 규칙은 [`rules/agent_routing.md`](../rules/agent_routing.md)를 참조합니다.
-- **researcher** (Exa): 외부 문서, 웹 검색, 오류 조회에 SHOULD 위임.
-- **db-worker** (Supabase): DDL 변경 및 스키마 작업에 MUST 위임.
-- **refactorer** (Serena): 3개 이상 파일의 심볼 리네임 또는 영향 분석에 SHOULD 위임.
-- **full-context** (전체 MCP): 한 작업에서 2개 이상의 MCP 도메인이 교차할 때 SHOULD 위임.
+- 전체 라우팅 규칙은 [`rules/agent_routing.md`](../rules/agent_routing.md)를 참조합니다
+  (2026-06 미사용 MCP 위임 매트릭스 폐기 기록 포함).
 - **reviewer**: 10줄 이상 코드 변경 또는 로직 변경에 SHOULD 위임. 3-패스 적대 리뷰(self + Codex + OMC).
 - **verifier**: AC가 존재할 때 작업 완료 주장 전에 MUST 위임.
 
