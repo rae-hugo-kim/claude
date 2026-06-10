@@ -39,6 +39,18 @@
 //     program names (`\git commit`), leading redirections before the command
 //     (`>out git commit`), and process substitution (`cat <(git commit)`) are NOT
 //     detected — all exotic and outside the (non-adversarial) agent threat model.
+//   - Sequencer continuations that CREATE commits (`git merge --continue`,
+//     `git cherry-pick --continue`, `git revert --continue`, `git rebase --continue`)
+//     are NOT detected — the subcommand is not `commit`. Deliberate: this workflow is
+//     main-centered (short-lived branches, squash-merge PRs; sequencers are ~unused),
+//     so the gates skip them rather than carry an effective-diff model per sequencer.
+//     Revisit if rebase/merge conflict-resolution becomes routine.
+//   - The heredoc delimiter is parsed as ONE quoted atom or ONE simple bareword
+//     (+ trailing CRs). Compound/odd-quoted delimiter WORDs (`<<'EOF'X`, `<<E"O"F`,
+//     `<<EO\F`) and an empty/whitespace-only delimiter (`<<\r\n`, where `\s*` reaches
+//     the next line) are mis-parsed, so a trailing commit after such a heredoc is
+//     missed. Pre-existing (unchanged by the CRLF-terminator fix), fail-open, but only
+//     reachable by deliberately bizarre delimiters — outside the agent threat model.
 //   - A few exotic forms OVER-detect (fail-closed, harmless): `command -v git commit`
 //     and `xargs echo git commit` are lookups/echoes, not commits, but report true.
 //   - Past MAX_DEPTH of nested `bash -c`, detection FAILS CLOSED (treats it as a commit).
@@ -94,9 +106,16 @@ function lexSegments(cmd) {
       continue;
     }
     if (c === '<' && nx === '<' && cmd[i + 2] !== '<') {                        // heredoc start (not <<<)
-      const m = /^<<(-?)\s*(?:'([^']+)'|"([^"]+)"|\\?([A-Za-z_][A-Za-z0-9_.-]*))/.exec(cmd.slice(i));
+      // Trailing CRs are CAPTURED INTO the delimiter: to bash `\r` is a word character,
+      // not whitespace, so under CRLF input the delimiter word itself carries the CR(s)
+      // (`<<EOF\r\n` -> delimiter "EOF\r", `<<'EOF'\r\n` -> "EOF\r" after quote removal)
+      // and the terminator line — compared RAW, bash strips nothing — carries them too.
+      // Mirroring that here keeps the drain's raw comparison in lockstep with bash for
+      // CRLF, LF, and mixed input alike: a CR-less "EOF" line under a CRLF opener stays
+      // DATA (no early termination), and a CRLF "EOF\r" terminator matches exactly.
+      const m = /^<<(-?)\s*(?:'([^']+)'|"([^"]+)"|\\?([A-Za-z_][A-Za-z0-9_.-]*))(\r*)/.exec(cmd.slice(i));
       if (m) {
-        heredocs.push({ delim: m[2] ?? m[3] ?? m[4], strip: m[1] === '-' });
+        heredocs.push({ delim: (m[2] ?? m[3] ?? m[4]) + m[5], strip: m[1] === '-' });
         cur += m[0]; i += m[0].length; continue;
       }
     }
@@ -108,6 +127,8 @@ function lexSegments(cmd) {
         while (i < n) {
           let j = i;
           while (j < n && cmd[j] !== '\n') j++;
+          // RAW comparison, exactly like bash (it strips nothing — CR handling lives
+          // in the delimiter capture above, which keeps CRLF terminators matching).
           const line = cmd.slice(i, j);
           i = j < n ? j + 1 : j;
           if ((strip ? line.replace(/^\t+/, '') : line) === delim) break;

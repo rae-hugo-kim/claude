@@ -133,6 +133,12 @@ const SKIP = [
   'echo "$(git commit)"',
   "env -S 'git commit -m x'",                      // env split-string exec
   'case x in x) git commit;; esac',                // case-pattern body
+  // sequencer continuations CREATE commits but are deliberately out of scope for a
+  // main-centered workflow (squash-merge PRs; sequencers ~unused) — see module header.
+  'git merge --continue',
+  'git cherry-pick --continue',
+  'git revert --continue',
+  'git rebase --continue',
 ];
 
 test('detects real git commit invocations', () => {
@@ -145,6 +151,40 @@ test('does not fire on non-commit / commented / heredoc / quoted commands', () =
   for (const cmd of SKIP) {
     assert.equal(isGitCommit(cmd), false, `expected SKIP: ${JSON.stringify(cmd)}`);
   }
+});
+
+test('CRLF input: heredoc drain matches the terminator (fail-open regression)', () => {
+  // CRLF slices each heredoc body line as "...\r"; the drain must strip it or the
+  // terminator never matches and everything after the heredoc — a real trailing
+  // `git commit` included — is swallowed.
+  assert.equal(isGitCommit("cat <<'EOF'\r\ntext\r\nEOF\r\ngit commit -m x\r\n"), true);
+  assert.equal(isGitCommit('cat <<EOF\r\ntext\r\nEOF\r\ngit commit -m x\r\n'), true);   // bareword delim
+  assert.equal(isGitCommit('cat <<-EOF\r\n\ttext\r\n\tEOF\r\ngit commit -m x'), true); // <<- strip mode
+  // ...while heredoc-BODY text still must not fire under CRLF (false-positive guard).
+  assert.equal(isGitCommit("cat <<'EOF'\r\ngit commit\r\nEOF\r\n"), false);
+});
+
+test('LF input: CR-bearing body lines stay DATA (no early termination)', () => {
+  // Under LF input bash strips nothing: a stray "EOF\r" body line is data, NOT the
+  // terminator. Stripping CRs there would terminate the drain early and mis-expose
+  // body text as live commands — here a quote character that swallows the real
+  // terminator and the trailing commit (adversarial-review regression, round 2).
+  assert.equal(isGitCommit("cat <<EOF\nEOF\r\n'\nEOF\ngit commit -m real\n"), true);
+  // A quoted delimiter may contain a literal CR; only the raw comparison matches it.
+  assert.equal(isGitCommit('cat <<"EOF\r"\nbody\nEOF\r\ngit commit -m after\n'), true);
+});
+
+test('mixed line endings: the delimiter carries the CR, like bash (round-3 pins)', () => {
+  // CRLF opener -> bash's delimiter word is "EOF\r" (CR is a word char, not
+  // whitespace). An LF-only "EOF" body line is therefore DATA — terminating early
+  // on it would mis-expose a quote that swallows the real trailing commit.
+  assert.equal(isGitCommit(": <<EOF\r\nEOF\n'\nEOF\r\ngit commit -m real\r\n"), true);
+  assert.equal(isGitCommit(": <<'EOF'\r\nEOF\n'\nEOF\r\ngit commit -m real\r\n"), true);
+  // Multiple CRs are all part of the delimiter word ("EOF\r\r").
+  assert.equal(isGitCommit(': <<EOF\r\r\nbody\r\nEOF\r\r\ngit commit -m x\r\n'), true);
+  // Multiple heredocs on one line: each delimiter keeps its own trailing CRs
+  // (A is space-terminated -> "A"; B is line-terminated -> "B\r").
+  assert.equal(isGitCommit(": <<A <<B\r\nA\nB\n'\nB\r\ngit commit -m real\r\n"), true);
 });
 
 // Build N levels of valid nested `bash -c "<inner>"` (escape \ and " each level).
@@ -250,6 +290,10 @@ test('plain shell redirections / heredocs are dropped, not read as pathspecs', (
   assert.deepEqual(parseCommitForm('git commit -F - < msg.txt'), PLAIN);
   assert.deepEqual(parseCommitForm("git commit -F - <<'MSG'\nbody line\nMSG"), PLAIN);
   assert.deepEqual(parseCommitForm('git commit -am x > out'), ALL);
+  // CRLF variants: same classification as LF (was: the unmatched terminator swallowed
+  // a second commit, leaving a single-commit PLAIN verdict for a two-commit line).
+  assert.deepEqual(parseCommitForm("git commit -F - <<'MSG'\r\nbody line\r\nMSG\r\n"), PLAIN);
+  assert.equal(parseCommitForm("git commit -F - <<'MSG'\r\nbody\r\nMSG\r\ngit commit -a -m real").verifiable, false);
 });
 
 test('&-bearing redirections (2>&1, >&2, &>x) -> verifiable:false (segment-split fail-open)', () => {
