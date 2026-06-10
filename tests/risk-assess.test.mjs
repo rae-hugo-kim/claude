@@ -19,6 +19,7 @@ import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { assessRisk, isHighRiskFile } from '../.claude/hooks/harness/risk-assess.mjs';
+import { parseCommitForm } from '../.claude/hooks/harness/git-commit-detect.mjs';
 
 // --- Unit: isHighRiskFile (pure, no git) ---
 
@@ -158,5 +159,63 @@ test('assessRisk: an uppercase prose doc (.MD) is low, not medium (case-insensit
   // not just the high-risk check) must be case-insensitive, else `tdd_policy.MD` falls to medium.
   withRepo({ 'rules/tdd_policy.MD': '# TDD policy\nprose change\n' }, (dir) => {
     assert.equal(assessRisk(dir).level, 'low');
+  });
+});
+
+// --- Commit-form scoping: risk is assessed on what the commit actually CAPTURES ---
+// A repo with an initial commit, then a STAGED low-risk doc edit and an UNSTAGED
+// (tracked) critical-risk code edit. A plain commit captures only the staged doc;
+// -a captures the unstaged code too; an unverifiable form falls back to the union.
+
+function makeMixedRepo() {
+  const dir = mkdtempSync(join(tmpdir(), 'risk-form-'));
+  const git = (args) => {
+    const r = spawnSync('git', args, { cwd: dir, encoding: 'utf-8' });
+    if (r.status !== 0) throw new Error(`git ${args.join(' ')} failed: ${r.stderr}`);
+  };
+  git(['init', '-q']);
+  git(['config', 'user.email', 't@example.com']);
+  git(['config', 'user.name', 'Test']);
+  mkdirSync(join(dir, 'src', 'auth'), { recursive: true });
+  mkdirSync(join(dir, 'docs'), { recursive: true });
+  writeFileSync(join(dir, 'src/auth/login.ts'), 'init\n');
+  writeFileSync(join(dir, 'docs/notes.md'), '# init\n');
+  git(['add', '-A']);
+  git(['commit', '-q', '-m', 'init']);
+  writeFileSync(join(dir, 'docs/notes.md'), '# init\nstaged prose edit\n');  // staged: low
+  git(['add', 'docs/notes.md']);
+  writeFileSync(join(dir, 'src/auth/login.ts'), 'init\nunstaged auth edit\n'); // unstaged: critical
+  return dir;
+}
+
+function withMixed(fn) {
+  const dir = makeMixedRepo();
+  try { return fn(dir); } finally { rmSync(dir, { recursive: true, force: true }); }
+}
+
+test('assessRisk(form=plain): only the staged doc counts -> low (ignores unstaged auth)', () => {
+  withMixed((dir) => {
+    assert.equal(assessRisk(dir, parseCommitForm('git commit -m x')).level, 'low');
+  });
+});
+
+test('assessRisk(form=-a): captures unstaged tracked code -> critical', () => {
+  withMixed((dir) => {
+    assert.equal(assessRisk(dir, parseCommitForm('git commit -am x')).level, 'critical');
+  });
+});
+
+test('assessRisk(unverifiable form): conservative union -> critical', () => {
+  withMixed((dir) => {
+    assert.equal(assessRisk(dir, parseCommitForm('git commit -m x src/auth/login.ts')).level, 'critical');
+  });
+});
+
+test('assessRisk(no form): legacy union default is unchanged -> critical', () => {
+  // Back-compat: callers that pass no form still get the staged∪unstaged union, so the
+  // unstaged auth edit is seen. This is what guarantees the plain-form result above is a
+  // real narrowing, not an across-the-board drop.
+  withMixed((dir) => {
+    assert.equal(assessRisk(dir).level, 'critical');
   });
 });
