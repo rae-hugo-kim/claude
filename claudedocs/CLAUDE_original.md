@@ -2,9 +2,9 @@
 warning_type: reference_only
 non_normative_reference_only: true
 last_sync_date: 2026-06-10
-status: stale
+status: synced
 source_of_truth: ../CLAUDE.md
-source_commit_hash: 614b3fd6e801e264593225b25699d3381647dd96
+source_commit_hash: b379ed5a64db3eea14433d41706b5d385782e203
 <!-- policy-sync-warning:end -->
 
 # CLAUDE.md (Team Standard) — Expanded English Reference
