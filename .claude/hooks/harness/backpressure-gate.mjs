@@ -7,7 +7,7 @@
 import { readFileSync, existsSync, appendFileSync, mkdirSync, unlinkSync } from 'fs';
 import { join } from 'path';
 import { assessRisk } from './risk-assess.mjs';
-import { isGitCommit } from './git-commit-detect.mjs';
+import { isGitCommit, parseCommitForm } from './git-commit-detect.mjs';
 
 const input = readFileSync(0, 'utf-8');
 
@@ -43,7 +43,10 @@ if (!isGitCommit(command)) {
 
 log('Git commit detected, checking backpressure status');
 
-const risk = assessRisk(cwd);
+// Scope risk to what the commit actually captures (staged-only for a plain commit,
+// all tracked for -a), so unrelated unstaged edits don't force test-verification on a
+// commit that won't include them. Unverifiable forms fall back to the conservative union.
+const risk = assessRisk(cwd, parseCommitForm(command));
 log(`Risk: ${risk.level} (${risk.reason})`);
 
 if (risk.level === 'low' || risk.level === 'none') {

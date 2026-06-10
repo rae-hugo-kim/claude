@@ -74,7 +74,10 @@ if (!isGitCommit(command)) {
   process.exit(0);
 }
 
-const risk = assessRisk(cwd);
+// Parse the commit form ONCE: it scopes both the risk assessment (assess only what the
+// commit captures, not unrelated unstaged changes) and the effective-diff hash below.
+const form = parseCommitForm(command);
+const risk = assessRisk(cwd, form);
 log(`Risk: ${risk.level} (${risk.reason}), ${risk.files.length} files, ~${risk.diffSize} lines`);
 
 if (risk.level === 'low' || risk.level === 'none') {
@@ -91,7 +94,11 @@ if (existsSync(skipFile)) {
   process.exit(0);
 }
 
-const today = new Date().toISOString().slice(0, 10);
+// LOCAL date (not toISOString's UTC): reviewer docs are named by the author's local
+// date, so a UTC "today" mismatched real reviews between local midnight and the UTC
+// offset (e.g. 00:00–08:59 KST → still "yesterday" in UTC), falsely failing coverage.
+const now = new Date();
+const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 let todayReviews = [];
 
 if (existsSync(reviewDir)) {
@@ -122,7 +129,6 @@ if (todayReviews.length === 0) {
 // matchedCurrent !== true branch below). execSync runs through a shell, so the pipe
 // needs no `shell` option; both diff commands are constant (no user input on the line).
 let currentHash = null;
-const form = parseCommitForm(command);
 if (form.verifiable) {
   const diffCmd = form.all ? 'git diff HEAD' : 'git diff --cached';
   try {

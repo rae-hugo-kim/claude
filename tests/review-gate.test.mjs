@@ -25,7 +25,10 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const GATE = join(dirname(fileURLToPath(import.meta.url)), '..', '.claude', 'hooks', 'harness', 'review-gate.mjs');
-const TODAY = new Date().toISOString().slice(0, 10);
+// Match the gate's LOCAL-date naming (it no longer uses UTC), so doc names line up
+// with the gate's `today` even when run near the UTC day boundary.
+const _now = new Date();
+const TODAY = `${_now.getFullYear()}-${String(_now.getMonth() + 1).padStart(2, '0')}-${String(_now.getDate()).padStart(2, '0')}`;
 
 const HIGH = { 'src/big.ts': 'export const x = 1;\n'.repeat(120) }; // code, >100 lines -> high
 const LOW = { 'docs/notes.md': '# notes\nprose\n' };               // prose doc -> low

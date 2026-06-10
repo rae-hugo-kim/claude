@@ -76,12 +76,27 @@ export function isHighRiskFile(filePath) {
   return HIGH_RISK_TOPIC_PATTERNS.some((p) => p.test(filePath));
 }
 
-export function assessRisk(cwd) {
+// The diff scope the commit will ACTUALLY capture, mirroring review-gate's hash scope
+// so risk is assessed on the same content that gets committed (parseCommitForm result):
+//   plain commit  -> the staged index only        (git diff --cached)
+//   -a / --all     -> all tracked modifications     (git diff HEAD)
+//   any other/unknown form, or no form passed -> the conservative union of staged +
+//     unstaged, so an unverifiable form (or a caller that does not know the form) never
+//     UNDER-estimates risk. The previous staged∪unstaged union over-counted a plain
+//     commit: unrelated unstaged changes inflated its risk and could falsely BLOCK it.
+function diffRanges(form) {
+  if (form && form.verifiable) return [form.all ? 'HEAD' : '--cached'];
+  return ['--cached', ''];          // '' selects the unstaged working tree
+}
+
+export function assessRisk(cwd, form) {
+  const ranges = diffRanges(form);
   let changedFiles;
   try {
-    const staged = execSync('git diff --cached --name-only', { cwd, encoding: 'utf-8' }).trim();
-    const unstaged = execSync('git diff --name-only', { cwd, encoding: 'utf-8' }).trim();
-    changedFiles = [...new Set([...staged.split('\n'), ...unstaged.split('\n')])].filter(Boolean);
+    const names = ranges.flatMap((r) =>
+      execSync(`git diff ${r} --name-only`, { cwd, encoding: 'utf-8' }).trim().split('\n')
+    );
+    changedFiles = [...new Set(names)].filter(Boolean);
   } catch {
     return { level: 'unknown', reason: 'git diff failed', files: [] };
   }
@@ -108,9 +123,8 @@ export function assessRisk(cwd) {
 
   let diffSize = 0;
   try {
-    const cachedStat = execSync('git diff --cached --shortstat', { cwd, encoding: 'utf-8' }).trim();
-    const unstagedStat = execSync('git diff --shortstat', { cwd, encoding: 'utf-8' }).trim();
-    for (const stat of [cachedStat, unstagedStat]) {
+    for (const r of ranges) {
+      const stat = execSync(`git diff ${r} --shortstat`, { cwd, encoding: 'utf-8' }).trim();
       const insertions = stat.match(/(\d+) insertion/);
       const deletions = stat.match(/(\d+) deletion/);
       if (insertions) diffSize += parseInt(insertions[1]);
